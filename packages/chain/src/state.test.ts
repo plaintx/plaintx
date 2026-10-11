@@ -96,6 +96,30 @@ describe("readSpenderInfo", () => {
     expect(info.size).toBe(3);
   });
 
+  it("marks registry contracts as known, with their name and status", async () => {
+    const router = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"; // Uniswap V2 Router 02 on Ethereum
+    const client = fakeClient(() => 0n, { [router]: "0x6080" });
+    const info = await readSpenderInfo(client, etherscan(true), 1, [router]);
+    expect(info.get(router)).toEqual({
+      reputation: "known",
+      isContract: true,
+      verified: true,
+      name: "Uniswap V2 Router 02",
+      status: "active",
+    });
+  });
+
+  it("does not trust a registry address that has no code on this chain", async () => {
+    const router = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
+    const info = await readSpenderInfo(
+      fakeClient(() => 0n),
+      etherscan(true),
+      1,
+      [router],
+    );
+    expect(info.get(router)?.reputation).toBe("unknown");
+  });
+
   it("marks verification unknown when Etherscan cannot answer", async () => {
     const client = fakeClient(() => 0n, { [APP]: "0x6080" });
     const info = await readSpenderInfo(client, etherscan(new Error("not on free tier")), 1, [APP]);

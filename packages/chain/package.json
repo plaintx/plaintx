@@ -17,10 +17,12 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "scan": "node --env-file=../../.env dist/cli.js"
+    "scan": "node --env-file=../../.env dist/cli.js",
+    "registry:verify": "node --env-file=../../.env dist/verify-registry.js"
   },
   "dependencies": {
     "@plaintx/core": "workspace:*",
+    "@plaintx/registry": "workspace:*",
     "viem": "^2.57.4"
   },
   "devDependencies": {

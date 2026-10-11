@@ -184,6 +184,9 @@ importers:
       '@plaintx/core':
         specifier: workspace:*
         version: link:../core
+      '@plaintx/registry':
+        specifier: workspace:*
+        version: link:../registry
       viem:
         specifier: ^2.57.4
         version: 2.57.4(typescript@7.0.2)
@@ -203,6 +206,22 @@ importers:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5))
+
+  packages/registry:
+    dependencies:
+      '@plaintx/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      viem:
+        specifier: ^2.57.4
+        version: 2.57.4(typescript@7.0.2)
       vitest:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5))

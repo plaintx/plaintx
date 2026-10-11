@@ -1,4 +1,5 @@
 import type { Address, Approval, SpenderInfo } from "@plaintx/core";
+import { lookupSpender } from "@plaintx/registry";
 import {
   BaseError,
   ContractFunctionRevertedError,
@@ -97,8 +98,14 @@ async function readApproval(
 /** EIP-7702: a wallet that delegates to code carries this prefix but is still a personal wallet. */
 const DELEGATION_PREFIX = "0xef0100";
 
+/** True for deployed contract code; false for no code or an EIP-7702 delegated wallet. */
+export function isContractCode(code: `0x${string}` | undefined): boolean {
+  return !!code && code !== "0x" && !code.startsWith(DELEGATION_PREFIX);
+}
+
 /**
- * Facts about each spender. Reputation stays "unknown" until curated lists exist.
+ * Facts about each spender. Reputation is "known" only for a registry entry that also has
+ * contract code here: a listed address without code is not the app it claims to be.
  * If Etherscan cannot answer (e.g. a chain outside the free tier), `verified` is "unknown".
  */
 export async function readSpenderInfo(
@@ -109,13 +116,18 @@ export async function readSpenderInfo(
 ): Promise<Map<Address, SpenderInfo>> {
   const info = new Map<Address, SpenderInfo>();
   for (const spender of new Set(spenders)) {
-    const code = await client.getCode({ address: spender });
-    const isContract = !!code && code !== "0x" && !code.startsWith(DELEGATION_PREFIX);
+    const isContract = isContractCode(await client.getCode({ address: spender }));
     let verified: SpenderInfo["verified"] = false;
     if (isContract) {
       verified = await etherscan.isVerified(chainId, spender).catch(() => "unknown" as const);
     }
-    info.set(spender, { reputation: "unknown", isContract, verified });
+    const known = isContract ? lookupSpender(chainId, spender) : undefined;
+    info.set(
+      spender,
+      known
+        ? { reputation: "known", isContract, verified, name: known.name, status: known.status }
+        : { reputation: "unknown", isContract, verified },
+    );
   }
   return info;
 }
