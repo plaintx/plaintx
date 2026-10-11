@@ -40,8 +40,8 @@ export interface SpenderInfo {
   reputation: "malicious" | "known" | "unknown";
   /** False for a plain wallet (EOA): it has no code. */
   isContract: boolean;
-  /** Contract source is verified on a block explorer. */
-  verified: boolean;
+  /** Contract source is verified on a block explorer; "unknown" if the lookup was not possible. */
+  verified: boolean | "unknown";
   name?: string;
 }
 
@@ -81,7 +81,7 @@ export function assessApproval(approval: Approval, spender: SpenderInfo, now: nu
       summary:
         "The permission was given to a personal wallet, not an app. Scammers use this to take assets directly.",
     });
-  } else if (!spender.verified) {
+  } else if (spender.verified === false) {
     findings.push({
       id: "unverified-spender",
       level: "caution",

@@ -60,6 +60,10 @@ describe("assessApproval", () => {
     expect(ids(erc20(100n), { ...known, verified: false })).toEqual(["unverified-spender"]);
   });
 
+  it("does not flag a contract whose verification status is unknown", () => {
+    expect(ids(erc20(100n), { ...known, verified: "unknown" })).toEqual([]);
+  });
+
   it("flags unlimited ERC-20 and Permit2 amounts only for unknown spenders", () => {
     expect(ids(erc20(MAX_UINT256), unknown)).toEqual(["unlimited-unknown-spender"]);
     expect(ids(permit2(MAX_UINT160, NOW + DAY), unknown)).toEqual(["unlimited-unknown-spender"]);

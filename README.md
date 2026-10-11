@@ -27,7 +27,7 @@ Requires Node 24+ and pnpm (`corepack enable`). Develop on Linux, macOS or WSL2.
 
 ```sh
 pnpm install
-pnpm run ci     # lint, typecheck, test, build
+pnpm run ci     # lint, build, typecheck, test
 pnpm format     # auto-fix formatting
 ```
 
