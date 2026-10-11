@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createEtherscan } from "./etherscan.js";
+import { createEtherscan, UnsupportedChainError } from "./etherscan.js";
 
 const ADDRESS = "0x1111111111111111111111111111111111111111";
 
@@ -49,6 +49,15 @@ describe("getLogs", () => {
   it("throws Etherscan's error message", async () => {
     const { etherscan } = setup({ status: "0", message: "NOTOK", result: "Invalid API Key" });
     await expect(etherscan.getLogs(query)).rejects.toThrow("Etherscan: Invalid API Key");
+  });
+
+  it("tells a chain outside the API plan apart from other errors", async () => {
+    const { etherscan } = setup({
+      status: "0",
+      message: "NOTOK",
+      result: "Free API access is not supported for this chain. Please upgrade your api plan.",
+    });
+    await expect(etherscan.getLogs(query)).rejects.toThrow(UnsupportedChainError);
   });
 });
 

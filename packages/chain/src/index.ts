@@ -1,7 +1,9 @@
+export type { ChainName } from "./chains.js";
+export { chains, createClient, describeUpgradeability } from "./chains.js";
 export type { Candidate } from "./discovery.js";
 export { findCandidates } from "./discovery.js";
 export type { Etherscan, EtherscanLog, EtherscanOptions, LogQuery } from "./etherscan.js";
-export { createEtherscan } from "./etherscan.js";
+export { createEtherscan, UnsupportedChainError } from "./etherscan.js";
 export type { ScanOptions } from "./scan.js";
 export { scanWallet } from "./scan.js";
 export type { ChainReader } from "./state.js";

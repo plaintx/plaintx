@@ -1,0 +1,217 @@
+"use client";
+
+import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { useConnection } from "wagmi";
+import { countByLevel, VERDICT_LABELS } from "@/lib/format";
+import { CHAIN_OPTIONS, type ScanResult } from "@/lib/types";
+import { ApprovalRow } from "./approval-row";
+import { ConnectButton } from "./connect-button";
+
+const PAGE = 50;
+
+type State =
+  | { status: "idle" }
+  | { status: "scanning"; startedAt: number }
+  | { status: "error"; message: string }
+  | { status: "done"; result: ScanResult };
+
+export function HealthCheck() {
+  const { address: connected } = useConnection();
+  const [address, setAddress] = useState("");
+  const [chain, setChain] = useState<string>(CHAIN_OPTIONS[0].name);
+  const [state, setState] = useState<State>({ status: "idle" });
+  const [revoked, setRevoked] = useState<Set<string>>(new Set());
+  const [shown, setShown] = useState(0);
+
+  useEffect(() => {
+    if (connected && !address) setAddress(connected);
+  }, [connected, address]);
+
+  const onRevoked = useCallback((id: string) => setRevoked((prev) => new Set(prev).add(id)), []);
+
+  async function scan(event: FormEvent) {
+    event.preventDefault();
+    setState({ status: "scanning", startedAt: Date.now() });
+    setRevoked(new Set());
+    setShown(0);
+    try {
+      const res = await fetch("/api/scan", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ address, chain }),
+      });
+      const body = await res.json();
+      setState(
+        res.ok ? { status: "done", result: body } : { status: "error", message: body.error },
+      );
+    } catch {
+      setState({
+        status: "error",
+        message: "Could not reach PlainTx. Check your connection and try again.",
+      });
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <form
+        onSubmit={scan}
+        className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <label htmlFor="address" className="text-sm font-medium">
+            Wallet address
+          </label>
+          <ConnectButton />
+        </div>
+        <input
+          id="address"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="0x…"
+          spellCheck={false}
+          autoComplete="off"
+          className="w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 font-mono text-sm outline-none focus:border-indigo-500 dark:border-zinc-700"
+        />
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            value={chain}
+            onChange={(e) => setChain(e.target.value)}
+            aria-label="Network"
+            className="rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
+          >
+            {CHAIN_OPTIONS.map((c) => (
+              <option key={c.name} value={c.name}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            disabled={!address || state.status === "scanning"}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+          >
+            {state.status === "scanning" ? "Checking…" : "Check approvals"}
+          </button>
+        </div>
+      </form>
+
+      {state.status === "scanning" && <Scanning startedAt={state.startedAt} />}
+      {state.status === "error" && (
+        <p
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+        >
+          {state.message}
+        </p>
+      )}
+      {state.status === "done" && (
+        <Results
+          result={state.result}
+          revoked={revoked}
+          onRevoked={onRevoked}
+          shown={shown}
+          onShowMore={() => setShown((n) => n + PAGE)}
+        />
+      )}
+    </div>
+  );
+}
+
+function Scanning({ startedAt }: { startedAt: number }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const seconds = Math.floor((now - startedAt) / 1000);
+  return (
+    <p aria-live="polite" className="text-sm text-zinc-600 dark:text-zinc-400">
+      Reading this wallet's approval history… {seconds}s. Busy wallets can take a few minutes.
+    </p>
+  );
+}
+
+function Results({
+  result,
+  revoked,
+  onRevoked,
+  shown,
+  onShowMore,
+}: {
+  result: ScanResult;
+  revoked: Set<string>;
+  onRevoked: (id: string) => void;
+  shown: number;
+  onShowMore: () => void;
+}) {
+  const counts = countByLevel(result.rows);
+  const risky = result.rows.filter((r) => r.verdict.level !== "no_known_risks");
+  const rest = result.rows.filter((r) => r.verdict.level === "no_known_risks");
+  const row = (r: ScanResult["rows"][number]) => (
+    <ApprovalRow
+      key={r.id}
+      row={r}
+      owner={result.owner}
+      chainId={result.chainId}
+      revoked={revoked.has(r.id)}
+      onRevoked={onRevoked}
+    />
+  );
+
+  if (result.rows.length === 0) {
+    return (
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        This wallet has no active approvals on {result.chainName}. No app can spend its tokens or
+        NFTs.
+      </p>
+    );
+  }
+
+  return (
+    <section className="space-y-4">
+      <h2 className="text-lg font-semibold">
+        {result.rows.length} active approval{result.rows.length === 1 ? "" : "s"} on{" "}
+        {result.chainName}
+      </h2>
+      <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <span className="font-medium text-red-700 dark:text-red-300">
+          {counts.danger} {VERDICT_LABELS.danger.toLowerCase()}
+        </span>
+        <span className="font-medium text-amber-700 dark:text-amber-300">
+          {counts.caution} {VERDICT_LABELS.caution.toLowerCase()}
+        </span>
+        <span className="text-zinc-600 dark:text-zinc-400">
+          {counts.no_known_risks} with {VERDICT_LABELS.no_known_risks.toLowerCase()}
+        </span>
+      </p>
+      {risky.length > 0 && <ul className="space-y-3">{risky.map(row)}</ul>}
+      {rest.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">
+            {VERDICT_LABELS.no_known_risks} ({rest.length})
+          </h3>
+          <p className="text-xs text-zinc-500">
+            These passed our checks. That is not a guarantee: revoke anything you no longer use.
+          </p>
+          {shown > 0 && <ul className="space-y-3">{rest.slice(0, shown).map(row)}</ul>}
+          {shown < rest.length && (
+            <button
+              type="button"
+              onClick={onShowMore}
+              className="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+            >
+              {showMoreLabel(shown, rest.length)}
+            </button>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function showMoreLabel(shown: number, total: number): string {
+  const next = Math.min(PAGE, total - shown);
+  if (shown > 0) return `Show ${next} more`;
+  return next < total ? `Show ${next} of ${total}` : `Show ${total}`;
+}
