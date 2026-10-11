@@ -24,7 +24,8 @@ the user's own wallet (ADR 0007).
   are used only to watch for receipts. WalletConnect (phone wallets) needs a project ID and is
   left for later.
 - Wording follows ADR 0002: "No known risks found" is shown in grey, never as "safe".
-- New dependencies are pinned to exact versions at least two weeks old when added.
+- New dependencies are pinned to exact versions at least two weeks old when added, unless a
+  newer version fixes a known vulnerability (Next.js went to 16.3.8 for GHSA-cjq9-62q9-8jv4).
 
 ## Consequences
 
