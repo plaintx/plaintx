@@ -6,3 +6,4 @@ export type { ScanOptions } from "./scan.js";
 export { scanWallet } from "./scan.js";
 export type { ChainReader } from "./state.js";
 export { readActiveApprovals, readSpenderInfo } from "./state.js";
+export { readUpgradeability, SLOTS } from "./upgradeability.js";

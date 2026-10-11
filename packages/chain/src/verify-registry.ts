@@ -8,8 +8,9 @@
 import { KNOWN_SPENDERS } from "@plaintx/registry";
 import { BaseError } from "viem";
 import { type ChainName, chains, createClient } from "./chains.js";
+import { isContractCode } from "./code.js";
 import { createEtherscan } from "./etherscan.js";
-import { type ChainReader, isContractCode } from "./state.js";
+import type { ChainReader } from "./state.js";
 
 const apiKey = process.env.ETHERSCAN_API_KEY;
 if (!apiKey) {

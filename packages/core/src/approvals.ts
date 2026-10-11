@@ -39,6 +39,30 @@ export type Approval =
 export type SpenderStatus = "active" | "deprecated" | "compromised";
 
 /**
+ * Who can replace an upgradeable contract's code (see ADR 0006).
+ * "single-key": a personal wallet, or a multisig that needs only one signature.
+ * "unknown": a contract we could not identify; it raises no finding.
+ */
+export type UpgradeController =
+  | { kind: "single-key"; address: Address }
+  | { kind: "multisig"; address: Address; threshold: number; owners: number }
+  | { kind: "timelock"; address: Address; delaySeconds: number }
+  | { kind: "unknown"; address?: Address };
+
+/**
+ * Whether the spender is a proxy whose code can be swapped. `proxy: "none"` means no standard
+ * proxy pattern was found, not that the code can never change.
+ */
+export type Upgradeability =
+  | { proxy: "none" }
+  | {
+      proxy: "eip1967" | "eip1967-beacon" | "eip1822" | "openzeppelin-legacy";
+      /** Absent if it could not be read (e.g. a beacon without `implementation()`). */
+      implementation?: Address;
+      controller: UpgradeController;
+    };
+
+/**
  * Facts about the spender. Supplied by the caller (chain reads, explorers, curated lists)
  * so that the checks here stay deterministic and never touch the network.
  */
@@ -52,6 +76,8 @@ export interface SpenderInfo {
   name?: string;
   /** Only set for known spenders. */
   status?: SpenderStatus;
+  /** Only set for contracts; absent if it was not checked. */
+  upgradeability?: Upgradeability;
 }
 
 /**
@@ -104,6 +130,19 @@ export function assessApproval(approval: Approval, spender: SpenderInfo, now: nu
       id: "unverified-spender",
       level: "caution",
       summary: "The app's contract code is not published, so nobody can check what it does.",
+    });
+  }
+
+  if (
+    spender.upgradeability &&
+    spender.upgradeability.proxy !== "none" &&
+    spender.upgradeability.controller.kind === "single-key"
+  ) {
+    findings.push({
+      id: "upgradeable-single-key",
+      level: "caution",
+      summary:
+        "One person's key can replace this app's code at any moment, with no delay. If that key is stolen or misused, the app can be turned against you.",
     });
   }
 

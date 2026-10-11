@@ -4,7 +4,8 @@ Date: 2026-10-11
 
 ## Status
 
-Accepted. Amended by ADR 0005 (adds the `compromised-spender` rule).
+Accepted. Amended by ADR 0005 (adds `compromised-spender`) and ADR 0006 (adds
+`upgradeable-single-key`).
 
 ## Context
 

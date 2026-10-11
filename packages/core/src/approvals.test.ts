@@ -5,6 +5,7 @@ import {
   LONG_EXPIRY_SECONDS,
   rankApprovals,
   type SpenderInfo,
+  type UpgradeController,
 } from "./approvals.js";
 
 const NOW = 1_800_000_000;
@@ -64,6 +65,37 @@ describe("assessApproval", () => {
 
   it("does not flag a deprecated known app", () => {
     expect(ids(erc20(MAX_UINT256), { ...known, status: "deprecated" })).toEqual([]);
+  });
+
+  describe("upgradeability", () => {
+    const ADMIN = "0x3333333333333333333333333333333333333333";
+    const IMPL = "0x4444444444444444444444444444444444444444";
+    const proxy = (controller: UpgradeController): SpenderInfo => ({
+      ...known,
+      upgradeability: { proxy: "eip1967", implementation: IMPL, controller },
+    });
+
+    it("flags a proxy that one key can upgrade without delay", () => {
+      const verdict = assessApproval(
+        erc20(100n),
+        proxy({ kind: "single-key", address: ADMIN }),
+        NOW,
+      );
+      expect(verdict.level).toBe("caution");
+      expect(verdict.findings.map((f) => f.id)).toEqual(["upgradeable-single-key"]);
+    });
+
+    it.each<UpgradeController>([
+      { kind: "multisig", address: ADMIN, threshold: 4, owners: 7 },
+      { kind: "timelock", address: ADMIN, delaySeconds: 2 * DAY },
+      { kind: "unknown" },
+    ])("does not flag a proxy controlled by $kind", (controller) => {
+      expect(ids(erc20(MAX_UINT256), proxy(controller))).toEqual([]);
+    });
+
+    it("does not flag a contract with no proxy", () => {
+      expect(ids(erc20(MAX_UINT256), { ...known, upgradeability: { proxy: "none" } })).toEqual([]);
+    });
   });
 
   it("flags an unverified contract as caution", () => {
