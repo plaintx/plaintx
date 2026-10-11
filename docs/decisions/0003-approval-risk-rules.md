@@ -22,7 +22,7 @@ We cover three kinds: ERC-20 `approve`, NFT `setApprovalForAll`, and Uniswap Per
 | --------------------------- | ------- | ------------------------------------------------------------- |
 | `malicious-spender`         | danger  | Spender is on a curated scam/drainer list                     |
 | `spender-is-wallet`         | danger  | Spender has no code (EOA); legitimate apps are contracts      |
-| `unverified-spender`        | caution | Spender is a contract without verified source                 |
+| `unverified-spender`        | caution | Spender is a contract confirmed to have no verified source    |
 | `unlimited-unknown-spender` | caution | ERC-20/Permit2 amount >= 2^128 and spender reputation unknown |
 | `nft-all-unknown-spender`   | caution | `setApprovalForAll` to a spender with unknown reputation      |
 | `permit2-long-expiry`       | caution | Permit2 expiration more than 365 days from now                |

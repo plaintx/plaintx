@@ -1,0 +1,31 @@
+{
+  "name": "@plaintx/chain",
+  "version": "0.0.0",
+  "description": "Reads wallet approvals and spender facts from chain data for PlainTx.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "scan": "node --env-file=../../.env dist/cli.js"
+  },
+  "dependencies": {
+    "@plaintx/core": "workspace:*",
+    "viem": "^2.57.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}
