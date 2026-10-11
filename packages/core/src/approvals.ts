@@ -78,6 +78,10 @@ export interface SpenderInfo {
   status?: SpenderStatus;
   /** Only set for contracts; absent if it was not checked. */
   upgradeability?: Upgradeability;
+  /** Scam lists that name this address, when reputation is "malicious". */
+  listedBy?: string[];
+  /** True if a scam list could not be checked (e.g. a live service was down). See ADR 0008. */
+  blocklistUnavailable?: boolean;
 }
 
 /**
@@ -106,6 +110,15 @@ export function assessApproval(approval: Approval, spender: SpenderInfo, now: nu
       id: "malicious-spender",
       level: "danger",
       summary: "This address is on a list of known scam or drainer addresses.",
+    });
+  }
+
+  if (spender.blocklistUnavailable && spender.reputation !== "malicious") {
+    findings.push({
+      id: "blocklist-unavailable",
+      level: "caution",
+      summary:
+        "We couldn't check this address against scam lists right now. Try again before trusting it.",
     });
   }
 

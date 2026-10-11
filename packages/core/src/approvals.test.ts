@@ -51,6 +51,12 @@ describe("assessApproval", () => {
     expect(verdict.findings.map((f) => f.id)).toContain("malicious-spender");
   });
 
+  it("warns when the scam lists could not be checked, rather than staying silent", () => {
+    expect(ids(erc20(100n), { ...known, blocklistUnavailable: true })).toEqual([
+      "blocklist-unavailable",
+    ]);
+  });
+
   it("flags approvals to a personal wallet as danger, without a redundant unverified finding", () => {
     const wallet: SpenderInfo = { reputation: "unknown", isContract: false, verified: false };
     expect(assessApproval(erc20(100n), wallet, NOW).level).toBe("danger");
