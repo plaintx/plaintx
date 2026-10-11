@@ -13,5 +13,7 @@ export {
   rankApprovals,
   UNLIMITED_THRESHOLD,
 } from "./approvals.js";
+export type { RevokeTransaction } from "./revoke.js";
+export { PERMIT2, revokeTransaction } from "./revoke.js";
 export type { Finding, Verdict, VerdictLevel } from "./verdict.js";
 export { verdictFrom } from "./verdict.js";

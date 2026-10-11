@@ -1,5 +1,5 @@
 export type { Candidate } from "./discovery.js";
-export { findCandidates, PERMIT2 } from "./discovery.js";
+export { findCandidates } from "./discovery.js";
 export type { Etherscan, EtherscanLog, EtherscanOptions, LogQuery } from "./etherscan.js";
 export { createEtherscan } from "./etherscan.js";
 export type { ScanOptions } from "./scan.js";

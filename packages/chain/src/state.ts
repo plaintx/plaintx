@@ -1,4 +1,4 @@
-import type { Address, Approval, SpenderInfo } from "@plaintx/core";
+import { type Address, type Approval, PERMIT2, type SpenderInfo } from "@plaintx/core";
 import { lookupSpender } from "@plaintx/registry";
 import {
   BaseError,
@@ -10,7 +10,6 @@ import {
 } from "viem";
 import { isContractCode } from "./code.js";
 import type { Candidate } from "./discovery.js";
-import { PERMIT2 } from "./discovery.js";
 import type { Etherscan } from "./etherscan.js";
 import { readUpgradeability } from "./upgradeability.js";
 

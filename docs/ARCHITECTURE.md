@@ -49,3 +49,8 @@ unknown-spender warnings; it never makes a verdict better than "no known risks f
 See ADR 0006. For each contract spender, `packages/chain` reads standard proxy slots and works
 out who can change its code (single key, multisig, timelock or unknown). Only single-key
 control raises a finding.
+
+## Revoking
+
+See ADR 0007. `revokeTransaction` in `packages/core` builds an unsigned transaction per
+approval; the user's own wallet signs and sends it. PlainTx never signs anything.

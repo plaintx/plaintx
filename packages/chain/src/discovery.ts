@@ -1,9 +1,6 @@
-import type { Address } from "@plaintx/core";
+import { type Address, PERMIT2 } from "@plaintx/core";
 import { getAddress, pad, toEventSelector } from "viem";
 import { type Etherscan, type EtherscanLog, PAGE_SIZE } from "./etherscan.js";
-
-/** Uniswap Permit2, deployed at the same address on every supported chain. */
-export const PERMIT2: Address = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
 
 /** ERC-20 and ERC-721 share this signature; ERC-721's has a fourth topic (tokenId). */
 const APPROVAL = toEventSelector("Approval(address,address,uint256)");

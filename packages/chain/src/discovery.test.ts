@@ -1,6 +1,7 @@
+import { PERMIT2 } from "@plaintx/core";
 import { pad, toEventSelector } from "viem";
 import { describe, expect, it, vi } from "vitest";
-import { findCandidates, PERMIT2 } from "./discovery.js";
+import { findCandidates } from "./discovery.js";
 import { type Etherscan, type EtherscanLog, type LogQuery, PAGE_SIZE } from "./etherscan.js";
 
 const OWNER = "0x00000000000000000000000000000000000000AA";
