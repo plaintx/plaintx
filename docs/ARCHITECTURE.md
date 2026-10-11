@@ -23,7 +23,7 @@ apps/web, apps/extension, public API
 | `packages/core`     | started | Verdict model and deterministic risk checks            |
 | `packages/chain`    | started | Reads approvals and spender facts from chain data      |
 | `packages/registry` | started | Curated, source-linked list of known app contracts     |
-| `apps/web`          | planned | Next.js app: wallet health check, paste-and-check UI   |
+| `apps/web`          | started | Next.js app: wallet health check, paste-and-check UI   |
 | `apps/extension`    | planned | Browser extension that checks requests before signing  |
 | Simulation          | planned | Foundry Anvil forks to preview a transaction's effects |
 | Storage             | planned | Postgres for known-bad lists and cached results        |
@@ -60,3 +60,9 @@ approval; the user's own wallet signs and sends it. PlainTx never signs anything
 See ADR 0008. Spenders are checked through a `Blocklist` interface. Today it reads bundled
 MIT-licensed lists; live services plug in as further implementations. "Could not check" is
 reported, never treated as clean.
+
+## Web app
+
+See ADR 0009. `apps/web` scans on the server (`/api/scan`, keys stay server-side) and sends
+revoke transactions from the browser through the user's own wallet (wagmi, injected wallets).
+Run it with `pnpm --filter @plaintx/web dev`.

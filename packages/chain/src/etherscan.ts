@@ -33,6 +33,14 @@ export interface Etherscan {
   isVerified(chainId: number, address: Address): Promise<boolean>;
 }
 
+/** The API plan does not cover this chain (e.g. Base on the free tier). See ADR 0004. */
+export class UnsupportedChainError extends Error {
+  constructor(message: string) {
+    super(`Etherscan: ${message}`);
+    this.name = "UnsupportedChainError";
+  }
+}
+
 export interface EtherscanOptions {
   apiKey: string;
   fetch?: typeof globalThis.fetch;
@@ -69,6 +77,7 @@ export function createEtherscan({
         continue;
       }
       if (error && !/no records found/i.test(body.message)) {
+        if (/not supported for this chain/i.test(error)) throw new UnsupportedChainError(error);
         throw new Error(`Etherscan: ${error}`);
       }
       return body;
