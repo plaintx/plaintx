@@ -1,4 +1,10 @@
-export type { Address, Approval, RankedApproval, SpenderInfo } from "./approvals.js";
+export type {
+  Address,
+  Approval,
+  RankedApproval,
+  SpenderInfo,
+  SpenderStatus,
+} from "./approvals.js";
 export {
   assessApproval,
   LONG_EXPIRY_SECONDS,

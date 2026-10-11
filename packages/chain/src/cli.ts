@@ -3,23 +3,17 @@
  * Usage: pnpm --filter @plaintx/chain scan <address> [chain]   (chain: ethereum | base | arbitrum)
  * Reads ETHERSCAN_API_KEY and ETH_RPC_URL / BASE_RPC_URL / ARBITRUM_RPC_URL from the root .env.
  */
-import { BaseError, createPublicClient, http, isAddress } from "viem";
-import { arbitrum, base, mainnet } from "viem/chains";
+import { BaseError, HttpRequestError, isAddress } from "viem";
+import { type ChainName, chains, createClient } from "./chains.js";
 import { createEtherscan } from "./etherscan.js";
 import { scanWallet } from "./scan.js";
-
-const chains = {
-  ethereum: { chain: mainnet, rpcEnv: "ETH_RPC_URL" },
-  base: { chain: base, rpcEnv: "BASE_RPC_URL" },
-  arbitrum: { chain: arbitrum, rpcEnv: "ARBITRUM_RPC_URL" },
-} as const;
 
 const [owner, chainName = "ethereum"] = process.argv.slice(2);
 if (!owner || !isAddress(owner) || !(chainName in chains)) {
   console.error("Usage: pnpm --filter @plaintx/chain scan <address> [ethereum|base|arbitrum]");
   process.exit(1);
 }
-const { chain, rpcEnv } = chains[chainName as keyof typeof chains];
+const { chain, rpcEnv } = chains[chainName as ChainName];
 const rpcUrl = process.env[rpcEnv];
 const apiKey = process.env.ETHERSCAN_API_KEY;
 if (!rpcUrl || !apiKey) {
@@ -27,11 +21,7 @@ if (!rpcUrl || !apiKey) {
   process.exit(1);
 }
 
-// Small batches and patient retries keep free-tier endpoints from rejecting us (HTTP 429).
-const client = createPublicClient({
-  chain,
-  transport: http(rpcUrl, { batch: { batchSize: 10 }, retryCount: 5, retryDelay: 500 }),
-});
+const client = createClient(chainName as ChainName, rpcUrl);
 
 let ranked: Awaited<ReturnType<typeof scanWallet>>;
 try {
@@ -46,15 +36,18 @@ try {
   // Provider URLs carry API keys, and viem errors include the URL: print a redacted summary only.
   const message = error instanceof BaseError ? error.shortMessage : String(error);
   console.error(`Scan failed: ${redact(message)}`);
-  if (error instanceof BaseError && "status" in error)
-    console.error(`HTTP status: ${error.status}`);
+  const http = error instanceof BaseError && error.walk((e) => e instanceof HttpRequestError);
+  if (http instanceof HttpRequestError && http.status) console.error(`HTTP status: ${http.status}`);
   process.exit(1);
 }
 
 console.log(`${ranked.length} active approval(s) for ${owner} on ${chain.name}\n`);
-for (const { approval, verdict } of ranked) {
+for (const { approval, spender, verdict } of ranked) {
   const asset = approval.kind === "nft-all" ? approval.collection : approval.token;
-  console.log(`[${verdict.level}] ${approval.kind} ${asset} -> ${approval.spender}`);
+  const label = spender.name
+    ? ` (${spender.name}${spender.status === "active" ? "" : `, ${spender.status}`})`
+    : "";
+  console.log(`[${verdict.level}] ${approval.kind} ${asset} -> ${approval.spender}${label}`);
   for (const f of verdict.findings) console.log(`    - ${f.summary}`);
 }
 

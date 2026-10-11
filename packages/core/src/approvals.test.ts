@@ -56,6 +56,16 @@ describe("assessApproval", () => {
     expect(ids(erc20(100n), wallet)).toEqual(["spender-is-wallet"]);
   });
 
+  it("flags a compromised known app as danger, even for a small or NFT approval", () => {
+    const compromised: SpenderInfo = { ...known, status: "compromised" };
+    expect(assessApproval(erc20(100n), compromised, NOW).level).toBe("danger");
+    expect(ids(nftAll, compromised)).toEqual(["compromised-spender"]);
+  });
+
+  it("does not flag a deprecated known app", () => {
+    expect(ids(erc20(MAX_UINT256), { ...known, status: "deprecated" })).toEqual([]);
+  });
+
   it("flags an unverified contract as caution", () => {
     expect(ids(erc20(100n), { ...known, verified: false })).toEqual(["unverified-spender"]);
   });

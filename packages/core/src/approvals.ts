@@ -33,6 +33,12 @@ export type Approval =
     };
 
 /**
+ * Lifecycle of a known app contract, from the curated registry (see ADR 0005).
+ * "deprecated": the protocol has said it is retired. "compromised": it was exploited or taken over.
+ */
+export type SpenderStatus = "active" | "deprecated" | "compromised";
+
+/**
  * Facts about the spender. Supplied by the caller (chain reads, explorers, curated lists)
  * so that the checks here stay deterministic and never touch the network.
  */
@@ -42,7 +48,10 @@ export interface SpenderInfo {
   isContract: boolean;
   /** Contract source is verified on a block explorer; "unknown" if the lookup was not possible. */
   verified: boolean | "unknown";
+  /** Display name, e.g. "Uniswap V2 Router 02". Only set for known spenders. */
   name?: string;
+  /** Only set for known spenders. */
+  status?: SpenderStatus;
 }
 
 /**
@@ -71,6 +80,15 @@ export function assessApproval(approval: Approval, spender: SpenderInfo, now: nu
       id: "malicious-spender",
       level: "danger",
       summary: "This address is on a list of known scam or drainer addresses.",
+    });
+  }
+
+  if (spender.status === "compromised") {
+    findings.push({
+      id: "compromised-spender",
+      level: "danger",
+      summary:
+        "This app's contract was hacked or taken over. Anyone holding this permission may be able to take your assets.",
     });
   }
 

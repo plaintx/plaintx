@@ -18,14 +18,15 @@ apps/web, apps/extension, public API
 
 ## Components
 
-| Component        | Status  | Purpose                                                  |
-| ---------------- | ------- | -------------------------------------------------------- |
-| `packages/core`  | started | Verdict model and deterministic risk checks              |
-| `packages/chain` | started | Reads approvals and spender facts from chain data        |
-| `apps/web`       | planned | Next.js app: wallet health check, paste-and-check UI     |
-| `apps/extension` | planned | Browser extension that checks requests before signing    |
-| Simulation       | planned | Foundry Anvil forks to preview a transaction's effects   |
-| Storage          | planned | Postgres for known-bad lists and cached results          |
+| Component           | Status  | Purpose                                                |
+| ------------------- | ------- | ------------------------------------------------------ |
+| `packages/core`     | started | Verdict model and deterministic risk checks            |
+| `packages/chain`    | started | Reads approvals and spender facts from chain data      |
+| `packages/registry` | started | Curated, source-linked list of known app contracts     |
+| `apps/web`          | planned | Next.js app: wallet health check, paste-and-check UI   |
+| `apps/extension`    | planned | Browser extension that checks requests before signing  |
+| Simulation          | planned | Foundry Anvil forks to preview a transaction's effects |
+| Storage             | planned | Postgres for known-bad lists and cached results        |
 
 ## Chains
 
@@ -36,3 +37,9 @@ Ethereum, Base and Arbitrum first, via viem.
 See ADR 0004. Etherscan API v2 finds a wallet's approval history (event logs) and contract
 verification; an RPC endpoint (Alchemy) reads current state. `packages/core` never does I/O:
 `packages/chain` gathers facts and passes them in.
+
+## Spender reputation
+
+See ADR 0005. `packages/registry` lists known app contracts per chain, each backed by pinned
+sources from two or more of the protocol's own repositories. "Known" only removes the
+unknown-spender warnings; it never makes a verdict better than "no known risks found".
