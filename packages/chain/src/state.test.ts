@@ -26,6 +26,7 @@ function fakeClient(
   return {
     readContract: async (call: Read) => read(call),
     getCode: async ({ address }: { address: string }) => code[address],
+    getStorageAt: async () => undefined, // no proxies here; see upgradeability.test.ts
   } as unknown as ChainReader;
 }
 
@@ -90,7 +91,12 @@ describe("readSpenderInfo", () => {
     });
 
     const info = await readSpenderInfo(client, etherscan(true), 1, [APP, WALLET, delegated, APP]);
-    expect(info.get(APP)).toEqual({ reputation: "unknown", isContract: true, verified: true });
+    expect(info.get(APP)).toEqual({
+      reputation: "unknown",
+      isContract: true,
+      verified: true,
+      upgradeability: { proxy: "none" },
+    });
     expect(info.get(WALLET)?.isContract).toBe(false);
     expect(info.get(delegated)?.isContract).toBe(false);
     expect(info.size).toBe(3);
@@ -106,6 +112,7 @@ describe("readSpenderInfo", () => {
       verified: true,
       name: "Uniswap V2 Router 02",
       status: "active",
+      upgradeability: { proxy: "none" },
     });
   });
 

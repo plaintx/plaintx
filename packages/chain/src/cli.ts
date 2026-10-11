@@ -3,6 +3,7 @@
  * Usage: pnpm --filter @plaintx/chain scan <address> [chain]   (chain: ethereum | base | arbitrum)
  * Reads ETHERSCAN_API_KEY and ETH_RPC_URL / BASE_RPC_URL / ARBITRUM_RPC_URL from the root .env.
  */
+import type { SpenderInfo } from "@plaintx/core";
 import { BaseError, HttpRequestError, isAddress } from "viem";
 import { type ChainName, chains, createClient } from "./chains.js";
 import { createEtherscan } from "./etherscan.js";
@@ -49,6 +50,24 @@ for (const { approval, spender, verdict } of ranked) {
     : "";
   console.log(`[${verdict.level}] ${approval.kind} ${asset} -> ${approval.spender}${label}`);
   for (const f of verdict.findings) console.log(`    - ${f.summary}`);
+  const upgrades = describeUpgrades(spender.upgradeability);
+  if (upgrades) console.log(`    · ${upgrades}`);
+}
+
+/** Information only: who can change the spender's code. The verdict already covers the risky case. */
+function describeUpgrades(u: SpenderInfo["upgradeability"]): string | null {
+  if (!u || u.proxy === "none") return null;
+  const c = u.controller;
+  switch (c.kind) {
+    case "single-key":
+      return `Upgradeable by a single key (${c.address})`;
+    case "multisig":
+      return `Upgradeable by a ${c.threshold}-of-${c.owners} multisig (${c.address})`;
+    case "timelock":
+      return `Upgradeable after a ${Math.round(c.delaySeconds / 3600)}h timelock (${c.address})`;
+    case "unknown":
+      return "Upgradeable; could not tell who controls upgrades";
+  }
 }
 
 function redact(text: string): string {

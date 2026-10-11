@@ -4,6 +4,8 @@ export type {
   RankedApproval,
   SpenderInfo,
   SpenderStatus,
+  Upgradeability,
+  UpgradeController,
 } from "./approvals.js";
 export {
   assessApproval,

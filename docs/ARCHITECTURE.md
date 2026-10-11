@@ -43,3 +43,9 @@ verification; an RPC endpoint (Alchemy) reads current state. `packages/core` nev
 See ADR 0005. `packages/registry` lists known app contracts per chain, each backed by pinned
 sources from two or more of the protocol's own repositories. "Known" only removes the
 unknown-spender warnings; it never makes a verdict better than "no known risks found".
+
+## Upgradeability
+
+See ADR 0006. For each contract spender, `packages/chain` reads standard proxy slots and works
+out who can change its code (single key, multisig, timelock or unknown). Only single-key
+control raises a finding.

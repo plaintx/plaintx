@@ -8,11 +8,13 @@ import {
   type PublicClient,
   parseAbi,
 } from "viem";
+import { isContractCode } from "./code.js";
 import type { Candidate } from "./discovery.js";
 import { PERMIT2 } from "./discovery.js";
 import type { Etherscan } from "./etherscan.js";
+import { readUpgradeability } from "./upgradeability.js";
 
-export type ChainReader = Pick<PublicClient, "readContract" | "getCode">;
+export type ChainReader = Pick<PublicClient, "readContract" | "getCode" | "getStorageAt">;
 
 const nftAbi = parseAbi([
   "function isApprovedForAll(address owner, address operator) view returns (bool)",
@@ -95,14 +97,6 @@ async function readApproval(
   }
 }
 
-/** EIP-7702: a wallet that delegates to code carries this prefix but is still a personal wallet. */
-const DELEGATION_PREFIX = "0xef0100";
-
-/** True for deployed contract code; false for no code or an EIP-7702 delegated wallet. */
-export function isContractCode(code: `0x${string}` | undefined): boolean {
-  return !!code && code !== "0x" && !code.startsWith(DELEGATION_PREFIX);
-}
-
 /**
  * Facts about each spender. Reputation is "known" only for a registry entry that also has
  * contract code here: a listed address without code is not the app it claims to be.
@@ -117,16 +111,25 @@ export async function readSpenderInfo(
   const info = new Map<Address, SpenderInfo>();
   for (const spender of new Set(spenders)) {
     const isContract = isContractCode(await client.getCode({ address: spender }));
-    let verified: SpenderInfo["verified"] = false;
-    if (isContract) {
-      verified = await etherscan.isVerified(chainId, spender).catch(() => "unknown" as const);
+    if (!isContract) {
+      info.set(spender, { reputation: "unknown", isContract, verified: false });
+      continue;
     }
-    const known = isContract ? lookupSpender(chainId, spender) : undefined;
+    const verified = await etherscan.isVerified(chainId, spender).catch(() => "unknown" as const);
+    const upgradeability = await readUpgradeability(client, spender);
+    const known = lookupSpender(chainId, spender);
     info.set(
       spender,
       known
-        ? { reputation: "known", isContract, verified, name: known.name, status: known.status }
-        : { reputation: "unknown", isContract, verified },
+        ? {
+            reputation: "known",
+            isContract,
+            verified,
+            name: known.name,
+            status: known.status,
+            upgradeability,
+          }
+        : { reputation: "unknown", isContract, verified, upgradeability },
     );
   }
   return info;
