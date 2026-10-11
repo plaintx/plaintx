@@ -1,5 +1,10 @@
 import { type Address, type Approval, PERMIT2, type SpenderInfo } from "@plaintx/core";
-import { lookupSpender } from "@plaintx/registry";
+import {
+  type Blocklist,
+  type BlocklistResult,
+  bundledBlocklist,
+  lookupSpender,
+} from "@plaintx/registry";
 import {
   BaseError,
   ContractFunctionRevertedError,
@@ -99,6 +104,7 @@ async function readApproval(
 /**
  * Facts about each spender. Reputation is "known" only for a registry entry that also has
  * contract code here: a listed address without code is not the app it claims to be.
+ * A scam-list match makes it "malicious", even for a registry entry.
  * If Etherscan cannot answer (e.g. a chain outside the free tier), `verified` is "unknown".
  */
 export async function readSpenderInfo(
@@ -106,30 +112,55 @@ export async function readSpenderInfo(
   etherscan: Etherscan,
   chainId: number,
   spenders: readonly Address[],
+  blocklist: Blocklist = bundledBlocklist,
 ): Promise<Map<Address, SpenderInfo>> {
   const info = new Map<Address, SpenderInfo>();
   for (const spender of new Set(spenders)) {
-    const isContract = isContractCode(await client.getCode({ address: spender }));
-    if (!isContract) {
-      info.set(spender, { reputation: "unknown", isContract, verified: false });
-      continue;
-    }
-    const verified = await etherscan.isVerified(chainId, spender).catch(() => "unknown" as const);
-    const upgradeability = await readUpgradeability(client, spender);
-    const known = lookupSpender(chainId, spender);
-    info.set(
-      spender,
-      known
-        ? {
-            reputation: "known",
-            isContract,
-            verified,
-            name: known.name,
-            status: known.status,
-            upgradeability,
-          }
-        : { reputation: "unknown", isContract, verified, upgradeability },
-    );
+    const facts = await readFacts(client, etherscan, chainId, spender);
+    // A blocklist that throws counts as unavailable: never as "not listed".
+    const listing = await blocklist
+      .check(chainId, spender)
+      .catch((): BlocklistResult => ({ status: "unavailable" }));
+    info.set(spender, withListing(facts, listing));
   }
   return info;
+}
+
+async function readFacts(
+  client: ChainReader,
+  etherscan: Etherscan,
+  chainId: number,
+  spender: Address,
+): Promise<SpenderInfo> {
+  const isContract = isContractCode(await client.getCode({ address: spender }));
+  if (!isContract) return { reputation: "unknown", isContract, verified: false };
+
+  const verified = await etherscan.isVerified(chainId, spender).catch(() => "unknown" as const);
+  const upgradeability = await readUpgradeability(client, spender);
+  const known = lookupSpender(chainId, spender);
+  return known
+    ? {
+        reputation: "known",
+        isContract,
+        verified,
+        name: known.name,
+        status: known.status,
+        upgradeability,
+      }
+    : { reputation: "unknown", isContract, verified, upgradeability };
+}
+
+function withListing(info: SpenderInfo, listing: BlocklistResult): SpenderInfo {
+  switch (listing.status) {
+    case "listed":
+      return {
+        ...info,
+        reputation: "malicious",
+        listedBy: listing.matches.map((m) => (m.note ? `${m.source}: ${m.note}` : m.source)),
+      };
+    case "unavailable":
+      return { ...info, blocklistUnavailable: true };
+    case "not-listed":
+      return info;
+  }
 }

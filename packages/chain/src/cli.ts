@@ -50,6 +50,7 @@ for (const { approval, spender, verdict } of ranked) {
     : "";
   console.log(`[${verdict.level}] ${approval.kind} ${asset} -> ${approval.spender}${label}`);
   for (const f of verdict.findings) console.log(`    - ${f.summary}`);
+  for (const listing of spender.listedBy ?? []) console.log(`    · Listed by ${listing}`);
   const upgrades = describeUpgrades(spender.upgradeability);
   if (upgrades) console.log(`    · ${upgrades}`);
 }

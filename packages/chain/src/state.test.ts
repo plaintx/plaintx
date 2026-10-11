@@ -1,3 +1,4 @@
+import { BLOCKLIST_ENTRIES, type Blocklist } from "@plaintx/registry";
 import { ContractFunctionRevertedError, HttpRequestError, pad, toEventSelector } from "viem";
 import { describe, expect, it } from "vitest";
 import type { Candidate } from "./discovery.js";
@@ -125,6 +126,69 @@ describe("readSpenderInfo", () => {
       [router],
     );
     expect(info.get(router)?.reputation).toBe("unknown");
+  });
+
+  describe("scam lists", () => {
+    const listed = (address: string): Blocklist => ({
+      check: async (_, a) =>
+        a === address
+          ? { status: "listed", matches: [{ source: "Test list", note: "Drainer" }] }
+          : { status: "not-listed" },
+    });
+
+    it("marks a listed personal wallet as malicious, with the list it came from", async () => {
+      const info = await readSpenderInfo(
+        fakeClient(() => 0n),
+        etherscan(true),
+        1,
+        [WALLET],
+        listed(WALLET),
+      );
+      expect(info.get(WALLET)).toMatchObject({
+        reputation: "malicious",
+        isContract: false,
+        listedBy: ["Test list: Drainer"],
+      });
+    });
+
+    it("lets a scam listing override the known-app registry", async () => {
+      const router = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
+      const client = fakeClient(() => 0n, { [router]: "0x6080" });
+      const info = await readSpenderInfo(client, etherscan(true), 1, [router], listed(router));
+      expect(info.get(router)).toMatchObject({
+        reputation: "malicious",
+        name: "Uniswap V2 Router 02",
+      });
+    });
+
+    it.each<[string, Blocklist]>([
+      ["unavailable", { check: async () => ({ status: "unavailable" }) }],
+      ["throws", { check: async () => Promise.reject(new Error("timeout")) }],
+    ])(
+      "flags the spender when the list is %s, never treating it as clean",
+      async (_, blocklist) => {
+        const info = await readSpenderInfo(
+          fakeClient(() => 0n),
+          etherscan(true),
+          1,
+          [WALLET],
+          blocklist,
+        );
+        expect(info.get(WALLET)?.blocklistUnavailable).toBe(true);
+      },
+    );
+
+    it("uses the bundled lists by default", async () => {
+      const [entry] = BLOCKLIST_ENTRIES;
+      const address = entry?.[0] as `0x${string}`;
+      const info = await readSpenderInfo(
+        fakeClient(() => 0n),
+        etherscan(true),
+        1,
+        [address],
+      );
+      expect(info.get(address)?.reputation).toBe("malicious");
+    });
   });
 
   it("marks verification unknown when Etherscan cannot answer", async () => {

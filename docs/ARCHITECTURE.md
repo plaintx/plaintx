@@ -54,3 +54,9 @@ control raises a finding.
 
 See ADR 0007. `revokeTransaction` in `packages/core` builds an unsigned transaction per
 approval; the user's own wallet signs and sends it. PlainTx never signs anything.
+
+## Scam lists
+
+See ADR 0008. Spenders are checked through a `Blocklist` interface. Today it reads bundled
+MIT-licensed lists; live services plug in as further implementations. "Could not check" is
+reported, never treated as clean.

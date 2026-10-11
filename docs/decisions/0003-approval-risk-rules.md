@@ -4,8 +4,8 @@ Date: 2026-10-11
 
 ## Status
 
-Accepted. Amended by ADR 0005 (adds `compromised-spender`) and ADR 0006 (adds
-`upgradeable-single-key`).
+Accepted. Amended by ADR 0005 (adds `compromised-spender`), ADR 0006 (adds
+`upgradeable-single-key`) and ADR 0008 (adds `blocklist-unavailable`).
 
 ## Context
 
