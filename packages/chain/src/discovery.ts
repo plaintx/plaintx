@@ -16,13 +16,15 @@ export type Candidate =
 
 /**
  * Finds every pair the owner has approved on this chain since `fromBlock`, from event logs.
- * The default searches the whole history.
+ * The default searches the whole history. `onLogs` gets the running count of logs read, since
+ * the total is not known until the search ends.
  */
 export async function findCandidates(
   etherscan: Etherscan,
   chainId: number,
   owner: Address,
   fromBlock = 0,
+  onLogs: (read: number) => void = () => {},
 ): Promise<Candidate[]> {
   const topic1 = pad(owner).toLowerCase() as `0x${string}`;
   const searches: { topic0: `0x${string}`; address?: Address }[] = [
@@ -33,8 +35,14 @@ export async function findCandidates(
   ];
 
   const found: Candidate[] = [];
+  let read = 0;
+  const onPage = (length: number) => {
+    read += length;
+    onLogs(read);
+  };
   for (const search of searches) {
-    for (const log of await allLogs(etherscan, { chainId, topic1, ...search }, fromBlock)) {
+    const query = { chainId, topic1, ...search };
+    for (const log of await allLogs(etherscan, query, fromBlock, onPage)) {
       const candidate = toCandidate(log, search.topic0);
       if (candidate) found.push(candidate);
     }
@@ -57,12 +65,14 @@ async function allLogs(
   etherscan: Etherscan,
   query: Omit<Parameters<Etherscan["getLogs"]>[0], "fromBlock">,
   startBlock: number,
+  onPage: (length: number) => void,
 ): Promise<EtherscanLog[]> {
   const logs: EtherscanLog[] = [];
   let fromBlock = startBlock;
   for (;;) {
     const page = await etherscan.getLogs({ ...query, fromBlock });
     logs.push(...page);
+    onPage(page.length);
     const last = page.at(-1);
     if (page.length < PAGE_SIZE || !last) return logs;
     const lastBlock = Number(last.blockNumber);

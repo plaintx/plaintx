@@ -38,6 +38,9 @@ const permit2Abi = parseAbi([
  */
 const MULTICALL_SIZE = 500;
 
+/** Reports how many items of a step are done, out of how many. */
+export type OnProgress = (done: number, total: number) => void;
+
 /**
  * Reads the live value of each candidate and keeps the ones that still grant something.
  * Calls that revert (non-standard or self-destructed tokens) are skipped. Any other failure,
@@ -48,6 +51,7 @@ export async function readActiveApprovals(
   chainId: number,
   owner: Address,
   candidates: readonly Candidate[],
+  onProgress: OnProgress = () => {},
 ): Promise<Approval[]> {
   const approvals: Approval[] = [];
   for (let i = 0; i < candidates.length; i += MULTICALL_SIZE) {
@@ -65,6 +69,7 @@ export async function readActiveApprovals(
         r.status === "failure" ? skipReverts(r.error) : toApproval(chainId, c, r.result);
       if (approval) approvals.push(approval);
     }
+    onProgress(i + group.length, candidates.length);
   }
   return approvals;
 }
@@ -139,6 +144,7 @@ export async function readSpenderInfo(
   blocklist: Blocklist = bundledBlocklist,
   cache?: ScanCache,
   onCacheError: (error: unknown) => void = () => {},
+  onProgress: OnProgress = () => {},
 ): Promise<Map<Address, SpenderInfo>> {
   const unique = [...new Set(spenders)];
   const cached = cache
@@ -163,6 +169,7 @@ export async function readSpenderInfo(
       .check(chainId, spender)
       .catch((): BlocklistResult => ({ status: "unavailable" }));
     info.set(spender, withListing(withRegistry(chainId, spender, facts), listing));
+    onProgress(info.size, unique.length);
   }
   if (cache && fetched.size > 0) await cache.putSpenderFacts(chainId, fetched).catch(onCacheError);
   return info;

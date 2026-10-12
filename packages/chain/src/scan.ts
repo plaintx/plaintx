@@ -12,6 +12,15 @@ import { type ChainReader, readActiveApprovals, readSpenderInfo } from "./state.
  */
 export const RESCAN_BLOCKS = 10_000;
 
+/**
+ * Where a scan has got to. The history step cannot know its total in advance, so it reports
+ * the approval events read so far; the later steps report done out of total.
+ */
+export type ScanProgress =
+  | { step: "history"; events: number }
+  | { step: "allowances"; done: number; total: number }
+  | { step: "spenders"; done: number; total: number };
+
 export interface ScanOptions {
   owner: Address;
   chainId: number;
@@ -25,6 +34,8 @@ export interface ScanOptions {
   cache?: ScanCache;
   /** Called when the cache fails. The scan carries on without it. */
   onCacheError?: (error: unknown) => void;
+  /** Called as the scan moves through its steps, to show the user how far it has got. */
+  onProgress?: (progress: ScanProgress) => void;
 }
 
 /** Finds a wallet's active approvals on one chain and ranks them riskiest first. */
@@ -37,9 +48,24 @@ export async function scanWallet({
   blocklist,
   cache,
   onCacheError = () => {},
+  onProgress = () => {},
 }: ScanOptions): Promise<RankedApproval[]> {
-  const candidates = await readHistory(client, etherscan, chainId, owner, cache, onCacheError);
-  const approvals = await readActiveApprovals(client, chainId, owner, candidates);
+  onProgress({ step: "history", events: 0 });
+  const candidates = await readHistory(
+    client,
+    etherscan,
+    chainId,
+    owner,
+    cache,
+    onCacheError,
+    (events) => onProgress({ step: "history", events }),
+  );
+  onProgress({ step: "allowances", done: 0, total: candidates.length });
+  const approvals = await readActiveApprovals(client, chainId, owner, candidates, (done, total) =>
+    onProgress({ step: "allowances", done, total }),
+  );
+  const spenderCount = new Set(approvals.map((a) => a.spender)).size;
+  onProgress({ step: "spenders", done: 0, total: spenderCount });
   const spenders = await readSpenderInfo(
     client,
     etherscan,
@@ -48,6 +74,7 @@ export async function scanWallet({
     blocklist,
     cache,
     onCacheError,
+    (done, total) => onProgress({ step: "spenders", done, total }),
   );
   return rankApprovals(
     approvals.flatMap((approval) => {
@@ -66,8 +93,9 @@ async function readHistory(
   owner: Address,
   cache: ScanCache | undefined,
   onCacheError: (error: unknown) => void,
+  onLogs: (read: number) => void,
 ): Promise<WalletHistory["candidates"]> {
-  if (!cache) return findCandidates(etherscan, chainId, owner);
+  if (!cache) return findCandidates(etherscan, chainId, owner, 0, onLogs);
 
   // Read the head first: logs after it may be missed this time, but the next scan covers them.
   const head = Number(await client.getBlockNumber());
@@ -78,7 +106,7 @@ async function readHistory(
   const fromBlock = cached ? Math.max(0, cached.scannedToBlock - RESCAN_BLOCKS) : 0;
   const candidates = mergeCandidates(
     cached?.candidates ?? [],
-    await findCandidates(etherscan, chainId, owner, fromBlock),
+    await findCandidates(etherscan, chainId, owner, fromBlock, onLogs),
   );
   await cache.putHistory(chainId, owner, { candidates, scannedToBlock: head }).catch(onCacheError);
   return candidates;

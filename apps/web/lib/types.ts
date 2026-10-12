@@ -1,3 +1,4 @@
+import type { ScanProgress } from "@plaintx/chain";
 import type { Address, RevokeTransaction, SpenderStatus, Verdict } from "@plaintx/core";
 
 /** One approval as the browser sees it: JSON-safe (no bigint) and ready to display. */
@@ -29,6 +30,17 @@ export interface ScanResult {
   scannedAt: string;
   rows: ScanRow[];
 }
+
+export type { ScanProgress };
+
+/**
+ * One line of the /api/scan response, which is newline-delimited JSON: progress lines while the
+ * scan runs, then exactly one result or error line.
+ */
+export type ScanEvent =
+  | { type: "progress"; progress: ScanProgress }
+  | { type: "result"; result: ScanResult }
+  | { type: "error"; error: string };
 
 export const CHAIN_OPTIONS = [
   { name: "ethereum", label: "Ethereum", chainId: 1, explorer: "https://etherscan.io" },

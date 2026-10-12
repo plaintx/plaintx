@@ -1,5 +1,5 @@
 import type { VerdictLevel } from "@plaintx/core";
-import { CHAIN_OPTIONS, type ScanRow } from "./types";
+import { CHAIN_OPTIONS, type ScanProgress, type ScanRow } from "./types";
 
 /** Never "safe": the best we can say is that no known risks were found (ADR 0002). */
 export const VERDICT_LABELS: Record<VerdictLevel, string> = {
@@ -41,4 +41,39 @@ export function countByLevel(rows: readonly ScanRow[]): Record<VerdictLevel, num
   const counts: Record<VerdictLevel, number> = { danger: 0, caution: 0, no_known_risks: 0 };
   for (const row of rows) counts[row.verdict.level]++;
   return counts;
+}
+
+export const SCAN_STEPS = 3;
+
+/** A scan step in plain words: which step it is, what it is doing and how far it has got. */
+export function describeProgress(progress: ScanProgress): {
+  step: number;
+  label: string;
+  detail: string;
+  /** 0 to 1, or undefined while the total is not known. */
+  fraction?: number;
+} {
+  const n = (x: number) => x.toLocaleString("en-US");
+  switch (progress.step) {
+    case "history":
+      return {
+        step: 1,
+        label: "Reading this wallet's approval history",
+        detail: `${n(progress.events)} approval event${progress.events === 1 ? "" : "s"} found`,
+      };
+    case "allowances":
+      return {
+        step: 2,
+        label: "Checking which approvals are still active",
+        detail: `${n(progress.done)} of ${n(progress.total)}`,
+        fraction: progress.total ? progress.done / progress.total : 1,
+      };
+    case "spenders":
+      return {
+        step: 3,
+        label: "Checking the apps and addresses you approved",
+        detail: `${n(progress.done)} of ${n(progress.total)}`,
+        fraction: progress.total ? progress.done / progress.total : 1,
+      };
+  }
 }
