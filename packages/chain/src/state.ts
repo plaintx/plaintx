@@ -21,7 +21,7 @@ import { readUpgradeability } from "./upgradeability.js";
 
 export type ChainReader = Pick<
   PublicClient,
-  "readContract" | "multicall" | "getCode" | "getStorageAt" | "getBlockNumber"
+  "readContract" | "multicall" | "getCode" | "getStorageAt"
 >;
 
 const nftAbi = parseAbi([
