@@ -2,8 +2,9 @@
 
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { useConnection } from "wagmi";
-import { countByLevel, VERDICT_LABELS } from "@/lib/format";
-import { CHAIN_OPTIONS, type ScanResult } from "@/lib/types";
+import { countByLevel, describeProgress, SCAN_STEPS, VERDICT_LABELS } from "@/lib/format";
+import { readNdjson } from "@/lib/ndjson";
+import { CHAIN_OPTIONS, type ScanEvent, type ScanProgress, type ScanResult } from "@/lib/types";
 import { ApprovalRow } from "./approval-row";
 import { ConnectButton } from "./connect-button";
 
@@ -11,7 +12,7 @@ const PAGE = 50;
 
 type State =
   | { status: "idle" }
-  | { status: "scanning"; startedAt: number }
+  | { status: "scanning"; startedAt: number; progress?: ScanProgress }
   | { status: "error"; message: string }
   | { status: "done"; result: ScanResult };
 
@@ -31,7 +32,8 @@ export function HealthCheck() {
 
   async function scan(event: FormEvent) {
     event.preventDefault();
-    setState({ status: "scanning", startedAt: Date.now() });
+    const startedAt = Date.now();
+    setState({ status: "scanning", startedAt });
     setRevoked(new Set());
     setShown(0);
     try {
@@ -40,10 +42,25 @@ export function HealthCheck() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ address, chain }),
       });
-      const body = await res.json();
-      setState(
-        res.ok ? { status: "done", result: body } : { status: "error", message: body.error },
-      );
+      if (!res.ok || !res.body) {
+        const body = await res.json();
+        setState({ status: "error", message: body.error });
+        return;
+      }
+      let finished = false;
+      await readNdjson<ScanEvent>(res.body, (event) => {
+        if (event.type === "progress") {
+          setState({ status: "scanning", startedAt, progress: event.progress });
+          return;
+        }
+        finished = true;
+        setState(
+          event.type === "result"
+            ? { status: "done", result: event.result }
+            : { status: "error", message: event.error },
+        );
+      });
+      if (!finished) throw new Error("Scan stream ended early");
     } catch {
       setState({
         status: "error",
@@ -100,7 +117,9 @@ export function HealthCheck() {
         </div>
       </form>
 
-      {state.status === "scanning" && <Scanning startedAt={state.startedAt} />}
+      {state.status === "scanning" && (
+        <Scanning startedAt={state.startedAt} progress={state.progress} />
+      )}
       {state.status === "error" && (
         <p
           role="alert"
@@ -122,17 +141,51 @@ export function HealthCheck() {
   );
 }
 
-function Scanning({ startedAt }: { startedAt: number }) {
+function Scanning({
+  startedAt,
+  progress,
+}: {
+  startedAt: number;
+  progress: ScanProgress | undefined;
+}) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
   const seconds = Math.floor((now - startedAt) / 1000);
+  const shown = describeProgress(progress ?? { step: "history", events: 0 });
   return (
-    <p aria-live="polite" className="text-sm text-zinc-600 dark:text-zinc-400">
-      Reading this wallet's approval history… {seconds}s. Busy wallets can take a few minutes.
-    </p>
+    <div className="space-y-2 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+      {/* Only the step is announced: counts change too often for a screen reader. */}
+      <p aria-live="polite" className="text-sm font-medium">
+        Step {shown.step} of {SCAN_STEPS}: {shown.label}…
+      </p>
+      <div
+        role="progressbar"
+        aria-label={shown.label}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={shown.fraction === undefined ? undefined : Math.round(shown.fraction * 100)}
+        className="h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
+      >
+        <div
+          className={`h-full rounded-full bg-indigo-600 transition-[width] duration-300 ${
+            shown.fraction === undefined ? "w-1/3 animate-pulse" : ""
+          }`}
+          style={shown.fraction === undefined ? undefined : { width: `${shown.fraction * 100}%` }}
+        />
+      </div>
+      <p className="flex justify-between gap-4 text-xs text-zinc-600 dark:text-zinc-400">
+        <span>{shown.detail}</span>
+        <span>{seconds}s</span>
+      </p>
+      {shown.step === 1 && seconds >= 10 && (
+        <p className="text-xs text-zinc-500">
+          Busy wallets can take a few minutes the first time. Later checks are much faster.
+        </p>
+      )}
+    </div>
   );
 }
 

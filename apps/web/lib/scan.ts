@@ -6,6 +6,7 @@ import {
   createClient,
   createEtherscan,
   type ScanCache,
+  type ScanProgress,
   scanWallet,
   UnsupportedChainError,
 } from "@plaintx/chain";
@@ -33,7 +34,11 @@ function scanCache(): ScanCache | null {
  * Runs a wallet scan with the server's API keys. Keys and provider URLs never leave the
  * server: errors are reduced to a redacted message.
  */
-export async function runScan(owner: Address, chainName: ChainName): Promise<ScanResult> {
+export async function runScan(
+  owner: Address,
+  chainName: ChainName,
+  onProgress?: (progress: ScanProgress) => void,
+): Promise<ScanResult> {
   const { chain, rpcEnv } = chains[chainName];
   const rpcUrl = process.env[rpcEnv];
   const apiKey = process.env.ETHERSCAN_API_KEY;
@@ -47,6 +52,7 @@ export async function runScan(owner: Address, chainName: ChainName): Promise<Sca
       etherscan: createEtherscan({ apiKey }),
       now: Math.floor(Date.now() / 1000),
       ...cacheOptions(),
+      ...(onProgress ? { onProgress } : {}),
     });
     return {
       owner,

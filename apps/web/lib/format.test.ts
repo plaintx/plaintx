@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   countByLevel,
   describePermission,
+  describeProgress,
   explorerAddressUrl,
   shortAddress,
   VERDICT_LABELS,
@@ -45,5 +46,24 @@ describe("format", () => {
   it("counts rows per verdict", () => {
     const rows = [row({}), row({}), row({ verdict: { level: "danger", findings: [] } })];
     expect(countByLevel(rows)).toEqual({ danger: 1, caution: 2, no_known_risks: 0 });
+  });
+});
+
+describe("describeProgress", () => {
+  it("counts events while the history total is unknown", () => {
+    expect(describeProgress({ step: "history", events: 1234 })).toEqual({
+      step: 1,
+      label: "Reading this wallet's approval history",
+      detail: "1,234 approval events found",
+    });
+  });
+
+  it("reports later steps as done out of total", () => {
+    const p = describeProgress({ step: "allowances", done: 500, total: 2000 });
+    expect([p.step, p.detail, p.fraction]).toEqual([2, "500 of 2,000", 0.25]);
+  });
+
+  it("treats an empty step as complete", () => {
+    expect(describeProgress({ step: "spenders", done: 0, total: 0 }).fraction).toBe(1);
   });
 });

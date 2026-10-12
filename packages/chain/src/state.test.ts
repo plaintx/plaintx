@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { memoryCache, type ScanCache } from "./cache.js";
 import type { Candidate } from "./discovery.js";
 import type { Etherscan, EtherscanLog, LogQuery } from "./etherscan.js";
-import { RESCAN_BLOCKS, scanWallet } from "./scan.js";
+import { RESCAN_BLOCKS, type ScanProgress, scanWallet } from "./scan.js";
 import { type ChainReader, readActiveApprovals, readSpenderInfo } from "./state.js";
 
 const OWNER = "0x00000000000000000000000000000000000000AA";
@@ -238,6 +238,35 @@ describe("scanWallet", () => {
     expect(ranked.map((r) => [r.approval.spender, r.verdict.level])).toEqual([
       [WALLET, "danger"], // personal wallet
       [APP, "caution"], // unlimited, unknown reputation
+    ]);
+  });
+
+  it("reports progress through each step", async () => {
+    const source: Etherscan = {
+      ...etherscan(true),
+      getLogs: async ({ topic0 }) =>
+        topic0 === APPROVAL ? [approvalLog(TOKEN, APP), approvalLog(NFT, WALLET)] : [],
+    };
+    const progress: ScanProgress[] = [];
+    await scanWallet({
+      owner: OWNER,
+      chainId: 1,
+      client: fakeClient(() => MAX, { [APP]: "0x6080" }),
+      etherscan: source,
+      now: NOW,
+      onProgress: (p) => progress.push(p),
+    });
+    expect(progress).toEqual([
+      { step: "history", events: 0 },
+      { step: "history", events: 2 }, // one page per search; only Approval has logs
+      { step: "history", events: 2 },
+      { step: "history", events: 2 },
+      { step: "history", events: 2 },
+      { step: "allowances", done: 0, total: 2 },
+      { step: "allowances", done: 2, total: 2 },
+      { step: "spenders", done: 0, total: 2 },
+      { step: "spenders", done: 1, total: 2 },
+      { step: "spenders", done: 2, total: 2 },
     ]);
   });
 });
