@@ -1,0 +1,32 @@
+{
+  "name": "@plaintx/cache",
+  "version": "0.0.0",
+  "description": "Postgres-backed scan cache for PlainTx.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "migrate": "node --env-file-if-exists=../../.env dist/migrate-cli.js"
+  },
+  "dependencies": {
+    "@plaintx/chain": "workspace:*",
+    "@plaintx/core": "workspace:*",
+    "postgres": "3.4.9"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

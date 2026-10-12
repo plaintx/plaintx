@@ -14,11 +14,15 @@ export type Candidate =
   | { kind: "nft-all"; collection: Address; spender: Address }
   | { kind: "permit2"; token: Address; spender: Address };
 
-/** Finds every pair the owner has ever approved on this chain, from event logs. */
+/**
+ * Finds every pair the owner has approved on this chain since `fromBlock`, from event logs.
+ * The default searches the whole history.
+ */
 export async function findCandidates(
   etherscan: Etherscan,
   chainId: number,
   owner: Address,
+  fromBlock = 0,
 ): Promise<Candidate[]> {
   const topic1 = pad(owner).toLowerCase() as `0x${string}`;
   const searches: { topic0: `0x${string}`; address?: Address }[] = [
@@ -28,13 +32,20 @@ export async function findCandidates(
     { topic0: PERMIT2_PERMIT, address: PERMIT2 },
   ];
 
-  const found = new Map<string, Candidate>();
+  const found: Candidate[] = [];
   for (const search of searches) {
-    for (const log of await allLogs(etherscan, { chainId, topic1, ...search })) {
+    for (const log of await allLogs(etherscan, { chainId, topic1, ...search }, fromBlock)) {
       const candidate = toCandidate(log, search.topic0);
-      if (candidate) found.set(keyOf(candidate), candidate);
+      if (candidate) found.push(candidate);
     }
   }
+  return mergeCandidates(found);
+}
+
+/** Combines candidate lists, keeping one of each token/spender pair. */
+export function mergeCandidates(...lists: readonly (readonly Candidate[])[]): Candidate[] {
+  const found = new Map<string, Candidate>();
+  for (const list of lists) for (const c of list) found.set(keyOf(c), c);
   return [...found.values()];
 }
 
@@ -45,9 +56,10 @@ export async function findCandidates(
 async function allLogs(
   etherscan: Etherscan,
   query: Omit<Parameters<Etherscan["getLogs"]>[0], "fromBlock">,
+  startBlock: number,
 ): Promise<EtherscanLog[]> {
   const logs: EtherscanLog[] = [];
-  let fromBlock = 0;
+  let fromBlock = startBlock;
   for (;;) {
     const page = await etherscan.getLogs({ ...query, fromBlock });
     logs.push(...page);
