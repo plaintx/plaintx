@@ -13,6 +13,7 @@ import {
   type PublicClient,
   parseAbi,
 } from "viem";
+import type { ScanCache, SpenderFacts } from "./cache.js";
 import { isContractCode } from "./code.js";
 import type { Candidate } from "./discovery.js";
 import type { Etherscan } from "./etherscan.js";
@@ -20,7 +21,7 @@ import { readUpgradeability } from "./upgradeability.js";
 
 export type ChainReader = Pick<
   PublicClient,
-  "readContract" | "multicall" | "getCode" | "getStorageAt"
+  "readContract" | "multicall" | "getCode" | "getStorageAt" | "getBlockNumber"
 >;
 
 const nftAbi = parseAbi([
@@ -126,6 +127,9 @@ function toApproval(chainId: number, c: Candidate, result: unknown): Approval | 
  * contract code here: a listed address without code is not the app it claims to be.
  * A scam-list match makes it "malicious", even for a registry entry.
  * If Etherscan cannot answer (e.g. a chain outside the free tier), `verified` is "unknown".
+ *
+ * Chain facts come from `cache` when it has them; the registry and scam lists are always
+ * checked fresh. A cache that fails is skipped, never trusted: see ADR 0010.
  */
 export async function readSpenderInfo(
   client: ChainReader,
@@ -133,41 +137,58 @@ export async function readSpenderInfo(
   chainId: number,
   spenders: readonly Address[],
   blocklist: Blocklist = bundledBlocklist,
+  cache?: ScanCache,
+  onCacheError: (error: unknown) => void = () => {},
 ): Promise<Map<Address, SpenderInfo>> {
+  const unique = [...new Set(spenders)];
+  const cached = cache
+    ? await cache.getSpenderFacts(chainId, unique).catch((error) => {
+        onCacheError(error);
+        return new Map<Address, SpenderFacts>();
+      })
+    : new Map<Address, SpenderFacts>();
+
   const info = new Map<Address, SpenderInfo>();
-  for (const spender of new Set(spenders)) {
-    const facts = await readFacts(client, etherscan, chainId, spender);
+  const fetched = new Map<Address, SpenderFacts>();
+  for (const spender of unique) {
+    let facts: ChainFacts | undefined = cached.get(spender);
+    if (!facts) {
+      facts = await readFacts(client, etherscan, chainId, spender);
+      // An "unknown" answer is a temporary gap, not a fact worth keeping.
+      if (facts.verified !== "unknown")
+        fetched.set(spender, { ...facts, verified: facts.verified });
+    }
     // A blocklist that throws counts as unavailable: never as "not listed".
     const listing = await blocklist
       .check(chainId, spender)
       .catch((): BlocklistResult => ({ status: "unavailable" }));
-    info.set(spender, withListing(facts, listing));
+    info.set(spender, withListing(withRegistry(chainId, spender, facts), listing));
   }
+  if (cache && fetched.size > 0) await cache.putSpenderFacts(chainId, fetched).catch(onCacheError);
   return info;
 }
+
+type ChainFacts = Pick<SpenderInfo, "isContract" | "verified" | "upgradeability">;
 
 async function readFacts(
   client: ChainReader,
   etherscan: Etherscan,
   chainId: number,
   spender: Address,
-): Promise<SpenderInfo> {
+): Promise<ChainFacts> {
   const isContract = isContractCode(await client.getCode({ address: spender }));
-  if (!isContract) return { reputation: "unknown", isContract, verified: false };
+  if (!isContract) return { isContract, verified: false };
 
   const verified = await etherscan.isVerified(chainId, spender).catch(() => "unknown" as const);
   const upgradeability = await readUpgradeability(client, spender);
-  const known = lookupSpender(chainId, spender);
+  return { isContract, verified, upgradeability };
+}
+
+function withRegistry(chainId: number, spender: Address, facts: ChainFacts): SpenderInfo {
+  const known = facts.isContract ? lookupSpender(chainId, spender) : undefined;
   return known
-    ? {
-        reputation: "known",
-        isContract,
-        verified,
-        name: known.name,
-        status: known.status,
-        upgradeability,
-      }
-    : { reputation: "unknown", isContract, verified, upgradeability };
+    ? { reputation: "known", ...facts, name: known.name, status: known.status }
+    : { reputation: "unknown", ...facts };
 }
 
 function withListing(info: SpenderInfo, listing: BlocklistResult): SpenderInfo {

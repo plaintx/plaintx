@@ -31,12 +31,24 @@ pnpm run ci     # lint, build, typecheck, test
 pnpm format     # auto-fix formatting
 ```
 
+The web app caches scans in Postgres (ADR 0010). Locally, start it with Docker:
+
+```sh
+cp .env.example .env                    # then fill in the API keys
+docker compose up -d                    # Postgres on localhost:5432
+pnpm --filter @plaintx/cache migrate    # create or update the tables
+pnpm -C apps/web dev                    # http://localhost:3000
+```
+
 Layout:
 
 ```
-apps/            user-facing apps (web, extension; not yet created)
-packages/core/   deterministic risk checks and verdicts
-docs/            architecture, decisions (ADRs), runbooks
+apps/web/           wallet health check (Next.js)
+packages/core/      deterministic risk checks and verdicts
+packages/chain/     reads approvals and spender facts from chain data
+packages/registry/  known apps and scam lists
+packages/cache/     Postgres scan cache
+docs/               architecture, decisions (ADRs), runbooks
 ```
 
 ## Contributing and security

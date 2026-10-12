@@ -1,9 +1,10 @@
 import { BLOCKLIST_ENTRIES, type Blocklist } from "@plaintx/registry";
 import { ContractFunctionRevertedError, HttpRequestError, pad, toEventSelector } from "viem";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { memoryCache, type ScanCache } from "./cache.js";
 import type { Candidate } from "./discovery.js";
-import type { Etherscan } from "./etherscan.js";
-import { scanWallet } from "./scan.js";
+import type { Etherscan, EtherscanLog, LogQuery } from "./etherscan.js";
+import { RESCAN_BLOCKS, scanWallet } from "./scan.js";
 import { type ChainReader, readActiveApprovals, readSpenderInfo } from "./state.js";
 
 const OWNER = "0x00000000000000000000000000000000000000AA";
@@ -13,6 +14,7 @@ const APP = "0x3333333333333333333333333333333333333333";
 const WALLET = "0x4444444444444444444444444444444444444444";
 const NOW = 1_800_000_000;
 const MAX = 2n ** 256n - 1n;
+const HEAD = 50_000n;
 
 interface Read {
   functionName: string;
@@ -38,6 +40,7 @@ function fakeClient(
       }),
     getCode: async ({ address }: { address: string }) => code[address],
     getStorageAt: async () => undefined, // no proxies here; see upgradeability.test.ts
+    getBlockNumber: async () => HEAD,
   } as unknown as ChainReader;
 }
 
@@ -209,14 +212,15 @@ describe("readSpenderInfo", () => {
 });
 
 describe("scanWallet", () => {
+  const APPROVAL = toEventSelector("Approval(address,address,uint256)");
+  const approvalLog = (token: `0x${string}`, spender: `0x${string}`) => ({
+    address: token,
+    topics: [APPROVAL, pad(OWNER), pad(spender)],
+    data: "0x" as const,
+    blockNumber: "0x1" as const,
+  });
+
   it("returns active approvals ranked riskiest first", async () => {
-    const APPROVAL = toEventSelector("Approval(address,address,uint256)");
-    const approvalLog = (token: `0x${string}`, spender: `0x${string}`) => ({
-      address: token,
-      topics: [APPROVAL, pad(OWNER), pad(spender)],
-      data: "0x" as const,
-      blockNumber: "0x1" as const,
-    });
     const source: Etherscan = {
       ...etherscan(true),
       getLogs: async ({ topic0 }) =>
@@ -235,5 +239,80 @@ describe("scanWallet", () => {
       [WALLET, "danger"], // personal wallet
       [APP, "caution"], // unlimited, unknown reputation
     ]);
+  });
+});
+
+describe("scanWallet with a cache", () => {
+  const APPROVAL = toEventSelector("Approval(address,address,uint256)");
+  const approvalLog = (spender: `0x${string}`): EtherscanLog => ({
+    address: TOKEN,
+    topics: [APPROVAL, pad(OWNER), pad(spender)],
+    data: "0x" as const,
+    blockNumber: "0x1" as const,
+  });
+
+  function setup(logs: EtherscanLog[], verified: boolean | Error = true) {
+    const getLogs = vi.fn(async ({ topic0 }: LogQuery) => (topic0 === APPROVAL ? logs : []));
+    const isVerified = vi.fn(etherscan(verified).isVerified);
+    const source: Etherscan = { getLogs, isVerified };
+    const client = fakeClient(() => MAX, { [APP]: "0x6080" });
+    const scan = (cache: ScanCache, onCacheError?: (error: unknown) => void) =>
+      scanWallet({
+        owner: OWNER,
+        chainId: 1,
+        client,
+        etherscan: source,
+        now: NOW,
+        cache,
+        ...(onCacheError ? { onCacheError } : {}),
+      });
+    return { scan, getLogs, isVerified };
+  }
+
+  it("searches only recent blocks on a repeat scan and keeps older approvals", async () => {
+    const logs = [approvalLog(APP)];
+    const { scan, getLogs } = setup(logs);
+    const cache = memoryCache();
+
+    await scan(cache);
+    expect(getLogs.mock.calls.every(([q]) => q.fromBlock === 0)).toBe(true);
+
+    getLogs.mockClear();
+    logs.splice(0, 1, approvalLog(WALLET)); // only the new approval is in the recent range
+    const ranked = await scan(cache);
+    expect(getLogs.mock.calls.every(([q]) => q.fromBlock === Number(HEAD) - RESCAN_BLOCKS)).toBe(
+      true,
+    );
+    expect(ranked.map((r) => r.approval.spender).sort()).toEqual([APP, WALLET].sort());
+  });
+
+  it("reuses spender facts instead of asking Etherscan again", async () => {
+    const { scan, isVerified } = setup([approvalLog(APP)]);
+    const cache = memoryCache();
+    await scan(cache);
+    await scan(cache);
+    expect(isVerified).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not cache a verification that Etherscan could not answer", async () => {
+    const { scan, isVerified } = setup([approvalLog(APP)], new Error("not on free tier"));
+    const cache = memoryCache();
+    await scan(cache);
+    await scan(cache);
+    expect(isVerified).toHaveBeenCalledTimes(2);
+  });
+
+  it("still scans when the cache fails, and reports the failure", async () => {
+    const { scan } = setup([approvalLog(APP)]);
+    const broken: ScanCache = {
+      getHistory: () => Promise.reject(new Error("db down")),
+      putHistory: () => Promise.reject(new Error("db down")),
+      getSpenderFacts: () => Promise.reject(new Error("db down")),
+      putSpenderFacts: () => Promise.reject(new Error("db down")),
+    };
+    const onCacheError = vi.fn();
+    const ranked = await scan(broken, onCacheError);
+    expect(ranked.map((r) => r.approval.spender)).toEqual([APP]);
+    expect(onCacheError).toHaveBeenCalledTimes(4);
   });
 });

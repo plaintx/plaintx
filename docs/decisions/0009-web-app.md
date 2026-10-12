@@ -29,7 +29,8 @@ the user's own wallet (ADR 0007).
 
 ## Consequences
 
-- Big wallets take minutes until scans are cached; the page shows elapsed time meanwhile.
+- Big wallets take minutes until scans are cached (done in ADR 0010); the page shows elapsed
+  time meanwhile.
 - Etherscan's free plan does not cover Base (confirmed 2026-10-11), so Base scans return a
   clear "not available yet" message until we use a paid plan or another log source.
 - Token names and amounts are not shown yet (only addresses and limited/unlimited); fetching
