@@ -78,14 +78,10 @@ export function HealthCheck() {
             value={chain}
             onChange={(e) => setChain(e.target.value)}
             aria-label="Network"
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            className="rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
           >
             {CHAIN_OPTIONS.map((c) => (
-              <option
-                key={c.name}
-                value={c.name}
-                className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
-              >
+              <option key={c.name} value={c.name}>
                 {c.label}
               </option>
             ))}
