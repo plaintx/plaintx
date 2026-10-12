@@ -18,7 +18,10 @@ import type { Candidate } from "./discovery.js";
 import type { Etherscan } from "./etherscan.js";
 import { readUpgradeability } from "./upgradeability.js";
 
-export type ChainReader = Pick<PublicClient, "readContract" | "getCode" | "getStorageAt">;
+export type ChainReader = Pick<
+  PublicClient,
+  "readContract" | "multicall" | "getCode" | "getStorageAt"
+>;
 
 const nftAbi = parseAbi([
   "function isApprovedForAll(address owner, address operator) view returns (bool)",
@@ -27,8 +30,12 @@ const permit2Abi = parseAbi([
   "function allowance(address owner, address token, address spender) view returns (uint160 amount, uint48 expiration, uint48 nonce)",
 ]);
 
-/** Reads in small groups so free-tier RPC endpoints don't rate-limit us. */
-const CONCURRENCY = 10;
+/**
+ * Calls per Multicall3 request. Each request costs the provider about as much as a single
+ * eth_call, so a wallet with thousands of candidates needs only a handful of requests instead of
+ * thousands (which free-tier RPC endpoints reject with HTTP 429).
+ */
+const MULTICALL_SIZE = 500;
 
 /**
  * Reads the live value of each candidate and keeps the ones that still grant something.
@@ -42,12 +49,21 @@ export async function readActiveApprovals(
   candidates: readonly Candidate[],
 ): Promise<Approval[]> {
   const approvals: Approval[] = [];
-  for (let i = 0; i < candidates.length; i += CONCURRENCY) {
-    const group = candidates.slice(i, i + CONCURRENCY);
-    const results = await Promise.all(
-      group.map((c) => readApproval(client, chainId, owner, c).catch(skipReverts)),
-    );
-    for (const approval of results) if (approval) approvals.push(approval);
+  for (let i = 0; i < candidates.length; i += MULTICALL_SIZE) {
+    const group = candidates.slice(i, i + MULTICALL_SIZE);
+    const results = await client.multicall({
+      contracts: group.map((c) => toCall(owner, c)),
+      allowFailure: true,
+      // We size the groups ourselves; 0 stops viem from splitting them further.
+      batchSize: 0,
+    });
+    for (const [j, c] of group.entries()) {
+      const r = results[j];
+      if (!r) throw new Error("Multicall returned fewer results than calls");
+      const approval =
+        r.status === "failure" ? skipReverts(r.error) : toApproval(chainId, c, r.result);
+      if (approval) approvals.push(approval);
+    }
   }
   return approvals;
 }
@@ -63,38 +79,42 @@ function skipReverts(error: unknown): null {
   throw error;
 }
 
-async function readApproval(
-  client: ChainReader,
-  chainId: number,
-  owner: Address,
-  c: Candidate,
-): Promise<Approval | null> {
+function toCall(owner: Address, c: Candidate) {
   switch (c.kind) {
-    case "erc20": {
-      const amount = await client.readContract({
+    case "erc20":
+      return {
         address: c.token,
         abi: erc20Abi,
         functionName: "allowance",
         args: [owner, c.spender],
-      });
-      return amount > 0n ? { ...c, chainId, amount } : null;
-    }
-    case "nft-all": {
-      const approved = await client.readContract({
+      } as const;
+    case "nft-all":
+      return {
         address: c.collection,
         abi: nftAbi,
         functionName: "isApprovedForAll",
         args: [owner, c.spender],
-      });
-      return approved ? { ...c, chainId } : null;
-    }
-    case "permit2": {
-      const [amount, expiration] = await client.readContract({
+      } as const;
+    case "permit2":
+      return {
         address: PERMIT2,
         abi: permit2Abi,
         functionName: "allowance",
         args: [owner, c.token, c.spender],
-      });
+      } as const;
+  }
+}
+
+function toApproval(chainId: number, c: Candidate, result: unknown): Approval | null {
+  switch (c.kind) {
+    case "erc20": {
+      const amount = result as bigint;
+      return amount > 0n ? { ...c, chainId, amount } : null;
+    }
+    case "nft-all":
+      return result ? { ...c, chainId } : null;
+    case "permit2": {
+      const [amount, expiration] = result as readonly [bigint, number, number];
       // Expired ones are kept; core decides they are harmless.
       return amount > 0n ? { ...c, chainId, amount, expiration } : null;
     }
