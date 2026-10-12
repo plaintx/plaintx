@@ -26,6 +26,16 @@ function fakeClient(
 ): ChainReader {
   return {
     readContract: async (call: Read) => read(call),
+    // Like viem with allowFailure: every error, reverts and network failures alike, becomes a
+    // per-call failure.
+    multicall: async ({ contracts }: { contracts: Read[] }) =>
+      contracts.map((call) => {
+        try {
+          return { status: "success", result: read(call) };
+        } catch (error) {
+          return { status: "failure", error };
+        }
+      }),
     getCode: async ({ address }: { address: string }) => code[address],
     getStorageAt: async () => undefined, // no proxies here; see upgradeability.test.ts
   } as unknown as ChainReader;
