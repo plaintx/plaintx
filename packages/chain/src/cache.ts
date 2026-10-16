@@ -1,5 +1,6 @@
 import type { Address, SpenderInfo } from "@plaintx/core";
 import { getAddress } from "viem";
+import type { AssetInfo } from "./assets.js";
 import type { Candidate } from "./discovery.js";
 
 /**
@@ -30,12 +31,16 @@ export interface ScanCache {
     spenders: readonly Address[],
   ): Promise<Map<Address, SpenderFacts>>;
   putSpenderFacts(chainId: number, facts: ReadonlyMap<Address, SpenderFacts>): Promise<void>;
+  /** Fresh names, symbols and decimals of the assets the cache knows. See ADR 0011. */
+  getAssetInfo(chainId: number, assets: readonly Address[]): Promise<Map<Address, AssetInfo>>;
+  putAssetInfo(chainId: number, info: ReadonlyMap<Address, AssetInfo>): Promise<void>;
 }
 
 /** In-process cache for tests and the CLIs. Shared deployments use @plaintx/cache (Postgres). */
 export function memoryCache(): ScanCache {
   const histories = new Map<string, WalletHistory>();
   const facts = new Map<string, SpenderFacts>();
+  const assets = new Map<string, AssetInfo>();
   const key = (chainId: number, address: Address) => `${chainId}:${getAddress(address)}`;
   return {
     async getHistory(chainId, owner) {
@@ -54,6 +59,17 @@ export function memoryCache(): ScanCache {
     },
     async putSpenderFacts(chainId, entries) {
       for (const [s, f] of entries) facts.set(key(chainId, s), f);
+    },
+    async getAssetInfo(chainId, addresses) {
+      const found = new Map<Address, AssetInfo>();
+      for (const a of addresses) {
+        const info = assets.get(key(chainId, a));
+        if (info) found.set(a, info);
+      }
+      return found;
+    },
+    async putAssetInfo(chainId, entries) {
+      for (const [a, info] of entries) assets.set(key(chainId, a), info);
     },
   };
 }

@@ -6,7 +6,7 @@
 import { BaseError, HttpRequestError, isAddress } from "viem";
 import { type ChainName, chains, createClient, describeUpgradeability } from "./chains.js";
 import { createEtherscan } from "./etherscan.js";
-import { scanWallet } from "./scan.js";
+import { assetOf, scanWallet } from "./scan.js";
 
 const [owner, chainName = "ethereum"] = process.argv.slice(2);
 if (!owner || !isAddress(owner) || !(chainName in chains)) {
@@ -23,9 +23,9 @@ if (!rpcUrl || !apiKey) {
 
 const client = createClient(chainName as ChainName, rpcUrl);
 
-let ranked: Awaited<ReturnType<typeof scanWallet>>;
+let report: Awaited<ReturnType<typeof scanWallet>>;
 try {
-  ranked = await scanWallet({
+  report = await scanWallet({
     owner,
     chainId: chain.id,
     client,
@@ -41,9 +41,13 @@ try {
   process.exit(1);
 }
 
-console.log(`${ranked.length} active approval(s) for ${owner} on ${chain.name}\n`);
-for (const { approval, spender, verdict } of ranked) {
-  const asset = approval.kind === "nft-all" ? approval.collection : approval.token;
+const { approvals, assets } = report;
+console.log(`${approvals.length} active approval(s) for ${owner} on ${chain.name}\n`);
+for (const { approval, spender, verdict } of approvals) {
+  const address = assetOf(approval);
+  const info = assets.get(address);
+  const shown = info?.symbol ?? info?.name;
+  const asset = shown ? `${shown} (${address})` : address;
   const label = spender.name
     ? ` (${spender.name}${spender.status === "active" ? "" : `, ${spender.status}`})`
     : "";

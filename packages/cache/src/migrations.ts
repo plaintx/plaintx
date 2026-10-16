@@ -22,6 +22,15 @@ const MIGRATIONS: readonly string[] = [
     primary key (chain_id, address)
   );
   `,
+  `
+  create table asset_info (
+    chain_id integer not null,
+    address text not null,
+    info jsonb not null,
+    fetched_at timestamptz not null default now(),
+    primary key (chain_id, address)
+  );
+  `,
 ];
 
 /** Arbitrary constant naming our advisory lock, so parallel deploys migrate one at a time. */

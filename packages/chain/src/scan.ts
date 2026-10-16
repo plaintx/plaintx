@@ -1,5 +1,6 @@
-import { type Address, type RankedApproval, rankApprovals } from "@plaintx/core";
+import { type Address, type Approval, type RankedApproval, rankApprovals } from "@plaintx/core";
 import type { Blocklist } from "@plaintx/registry";
+import { type AssetInfo, readAssetInfo } from "./assets.js";
 import type { ScanCache, WalletHistory } from "./cache.js";
 import { findCandidates, mergeCandidates } from "./discovery.js";
 import type { Etherscan } from "./etherscan.js";
@@ -21,6 +22,13 @@ export type ScanProgress =
   | { step: "allowances"; done: number; total: number }
   | { step: "spenders"; done: number; total: number };
 
+export interface ScanReport {
+  /** Active approvals, riskiest first. */
+  approvals: RankedApproval[];
+  /** Name, symbol and decimals of each approved token or collection, for display only. */
+  assets: ReadonlyMap<Address, AssetInfo>;
+}
+
 export interface ScanOptions {
   owner: Address;
   chainId: number;
@@ -38,7 +46,10 @@ export interface ScanOptions {
   onProgress?: (progress: ScanProgress) => void;
 }
 
-/** Finds a wallet's active approvals on one chain and ranks them riskiest first. */
+/**
+ * Finds a wallet's active approvals on one chain and ranks them riskiest first, with display
+ * details of the approved assets.
+ */
 export async function scanWallet({
   owner,
   chainId,
@@ -49,7 +60,7 @@ export async function scanWallet({
   cache,
   onCacheError = () => {},
   onProgress = () => {},
-}: ScanOptions): Promise<RankedApproval[]> {
+}: ScanOptions): Promise<ScanReport> {
   onProgress({ step: "history", events: 0 });
   const candidates = await readHistory(
     client,
@@ -66,23 +77,34 @@ export async function scanWallet({
   );
   const spenderCount = new Set(approvals.map((a) => a.spender)).size;
   onProgress({ step: "spenders", done: 0, total: spenderCount });
-  const spenders = await readSpenderInfo(
-    client,
-    etherscan,
-    chainId,
-    approvals.map((a) => a.spender),
-    blocklist,
-    cache,
-    onCacheError,
-    (done, total) => onProgress({ step: "spenders", done, total }),
-  );
-  return rankApprovals(
+  // Asset details need only one RPC request per 500 assets, so they are read alongside the
+  // spender step instead of being a step of their own.
+  const [spenders, assets] = await Promise.all([
+    readSpenderInfo(
+      client,
+      etherscan,
+      chainId,
+      approvals.map((a) => a.spender),
+      blocklist,
+      cache,
+      onCacheError,
+      (done, total) => onProgress({ step: "spenders", done, total }),
+    ),
+    readAssetInfo(client, chainId, approvals.map(assetOf), cache, onCacheError),
+  ]);
+  const ranked = rankApprovals(
     approvals.flatMap((approval) => {
       const spender = spenders.get(approval.spender);
       return spender ? [{ approval, spender }] : [];
     }),
     now,
   );
+  return { approvals: ranked, assets };
+}
+
+/** The token or NFT collection an approval covers. */
+export function assetOf(approval: Approval): Address {
+  return approval.kind === "nft-all" ? approval.collection : approval.token;
 }
 
 /** Every pair the owner has approved: the cached history plus anything newer. */

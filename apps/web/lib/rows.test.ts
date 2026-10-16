@@ -35,7 +35,18 @@ describe("toRow", () => {
       amount: "unlimited",
       revoke: { chainId: 1, to: TOKEN },
     });
+    expect(row).not.toHaveProperty("rawAmount");
+    expect(row).not.toHaveProperty("assetInfo");
     expect(() => JSON.stringify(row)).not.toThrow();
+  });
+
+  it("adds the asset's details and a limited amount", () => {
+    const usdc = { name: "USD Coin", symbol: "USDC", decimals: 6 };
+    const row = toRow(
+      ranked({ kind: "erc20", chainId: 1, token: TOKEN, spender: SPENDER, amount: 5n }),
+      new Map([[TOKEN, usdc]]),
+    );
+    expect(row).toMatchObject({ assetInfo: usdc, amount: "limited", rawAmount: "5" });
   });
 
   it("labels bounded, NFT and Permit2 approvals", () => {

@@ -1,4 +1,4 @@
-import type { ScanCache, SpenderFacts, WalletHistory } from "@plaintx/chain";
+import type { AssetInfo, ScanCache, SpenderFacts, WalletHistory } from "@plaintx/chain";
 import type { Address } from "@plaintx/core";
 import type { JSONValue, Sql } from "postgres";
 
@@ -8,14 +8,24 @@ import type { JSONValue, Sql } from "postgres";
  */
 export const SPENDER_FACTS_TTL_SECONDS = 6 * 60 * 60;
 
+/**
+ * How long asset names, symbols and decimals stay fresh. Decimals never change; a name or symbol
+ * changes only on a rare rebrand. See ADR 0011.
+ */
+export const ASSET_INFO_TTL_SECONDS = 30 * 24 * 60 * 60;
+
 export interface PostgresCacheOptions {
   spenderFactsTtlSeconds?: number;
+  assetInfoTtlSeconds?: number;
 }
 
 /** A ScanCache shared by every server that points at the same database. Run `migrate` first. */
 export function postgresCache(
   sql: Sql,
-  { spenderFactsTtlSeconds = SPENDER_FACTS_TTL_SECONDS }: PostgresCacheOptions = {},
+  {
+    spenderFactsTtlSeconds = SPENDER_FACTS_TTL_SECONDS,
+    assetInfoTtlSeconds = ASSET_INFO_TTL_SECONDS,
+  }: PostgresCacheOptions = {},
 ): ScanCache {
   return {
     async getHistory(chainId, owner) {
@@ -70,6 +80,36 @@ export function postgresCache(
         insert into spender_facts ${sql(rows)}
         on conflict (chain_id, address) do update set
           facts = excluded.facts,
+          fetched_at = now()`;
+    },
+
+    async getAssetInfo(chainId, assets) {
+      const found = new Map<Address, AssetInfo>();
+      if (assets.length === 0) return found;
+      const byKey = new Map(assets.map((a) => [a.toLowerCase(), a]));
+      const rows = await sql<{ address: string; info: AssetInfo }[]>`
+        select address, info from asset_info
+        where chain_id = ${chainId}
+          and address in ${sql([...byKey.keys()])}
+          and fetched_at > now() - make_interval(secs => ${assetInfoTtlSeconds})`;
+      for (const { address, info } of rows) {
+        const asset = byKey.get(address);
+        if (asset) found.set(asset, info);
+      }
+      return found;
+    },
+
+    async putAssetInfo(chainId, info) {
+      if (info.size === 0) return;
+      const rows = [...info].map(([address, i]) => ({
+        chain_id: chainId,
+        address: address.toLowerCase(),
+        info: sql.json(i as unknown as JSONValue),
+      }));
+      await sql`
+        insert into asset_info ${sql(rows)}
+        on conflict (chain_id, address) do update set
+          info = excluded.info,
           fetched_at = now()`;
     },
   };

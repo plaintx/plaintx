@@ -1,3 +1,5 @@
+export type { AssetInfo } from "./assets.js";
+export { cleanLabel, readAssetInfo } from "./assets.js";
 export type { ScanCache, SpenderFacts, WalletHistory } from "./cache.js";
 export { memoryCache } from "./cache.js";
 export type { ChainName } from "./chains.js";
@@ -6,8 +8,8 @@ export type { Candidate } from "./discovery.js";
 export { findCandidates, mergeCandidates } from "./discovery.js";
 export type { Etherscan, EtherscanLog, EtherscanOptions, LogQuery } from "./etherscan.js";
 export { createEtherscan, UnsupportedChainError } from "./etherscan.js";
-export type { ScanOptions, ScanProgress } from "./scan.js";
-export { RESCAN_BLOCKS, scanWallet } from "./scan.js";
+export type { ScanOptions, ScanProgress, ScanReport } from "./scan.js";
+export { assetOf, RESCAN_BLOCKS, scanWallet } from "./scan.js";
 export type { ChainReader, OnProgress } from "./state.js";
 export { readActiveApprovals, readSpenderInfo } from "./state.js";
 export { readUpgradeability, SLOTS } from "./upgradeability.js";
