@@ -11,5 +11,5 @@ coverage/
 .vscode/
 next-env.d.ts
 
-# Personal notes
-README.local.md
+# Personal, local-only files (notes, grant deck). Never pushed.
+private/
