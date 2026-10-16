@@ -61,6 +61,12 @@ See ADR 0008. Spenders are checked through a `Blocklist` interface. Today it rea
 MIT-licensed lists; live services plug in as further implementations. "Could not check" is
 reported, never treated as clean.
 
+## Token and collection details
+
+See ADR 0011. `packages/chain` reads each approved asset's name, symbol and decimals so rows
+can say "1,500 USDC". They come from the contract, so they are cleaned, shown for display only
+and never affect a verdict.
+
 ## Web app
 
 See ADR 0009. `apps/web` scans on the server (`/api/scan`, keys stay server-side) and sends

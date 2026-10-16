@@ -1,4 +1,4 @@
-import type { ScanProgress } from "@plaintx/chain";
+import type { AssetInfo, ScanProgress } from "@plaintx/chain";
 import type { Address, RevokeTransaction, SpenderStatus, Verdict } from "@plaintx/core";
 
 /** One approval as the browser sees it: JSON-safe (no bigint) and ready to display. */
@@ -7,12 +7,16 @@ export interface ScanRow {
   kind: "erc20" | "nft-all" | "permit2";
   /** Token or NFT collection. */
   asset: Address;
+  /** What the asset calls itself. Contract-supplied, so display only. */
+  assetInfo?: AssetInfo;
   spender: Address;
   spenderName?: string;
   spenderStatus?: SpenderStatus;
   spenderIsContract: boolean;
   /** "all" for NFT collection approvals. */
   amount: "unlimited" | "limited" | "all";
+  /** Limited approvals only: the raw amount as a decimal string (JSON has no bigint). */
+  rawAmount?: string;
   /** Permit2 only: unix seconds. */
   expiration?: number;
   verdict: Verdict;

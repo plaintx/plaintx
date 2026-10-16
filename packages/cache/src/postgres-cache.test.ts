@@ -1,4 +1,4 @@
-import type { SpenderFacts } from "@plaintx/chain";
+import type { AssetInfo, SpenderFacts } from "@plaintx/chain";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { migrate } from "./migrations.js";
@@ -32,6 +32,7 @@ describe.skipIf(!url)("postgresCache", () => {
   afterAll(async () => {
     await sql`delete from wallet_history where chain_id = ${CHAIN}`;
     await sql`delete from spender_facts where chain_id = ${CHAIN}`;
+    await sql`delete from asset_info where chain_id = ${CHAIN}`;
     await sql.end();
   });
 
@@ -74,5 +75,26 @@ describe.skipIf(!url)("postgresCache", () => {
     expect((await strict.getSpenderFacts(CHAIN, [WALLET])).size).toBe(0);
     const lenient = postgresCache(sql, { spenderFactsTtlSeconds: 3 * 3600 });
     expect((await lenient.getSpenderFacts(CHAIN, [WALLET])).size).toBe(1);
+  });
+
+  it("stores asset info, including an empty answer, and drops it after the TTL", async () => {
+    const cache = postgresCache(sql);
+    const usdc: AssetInfo = { name: "USD Coin", symbol: "USDC", decimals: 6 };
+    await cache.putAssetInfo(
+      CHAIN,
+      new Map<`0x${string}`, AssetInfo>([
+        [TOKEN, usdc],
+        [APP, {}],
+      ]),
+    );
+    const lower = TOKEN.toLowerCase() as `0x${string}`;
+    const found = await cache.getAssetInfo(CHAIN, [lower, APP, WALLET]);
+    expect(Object.fromEntries(found)).toEqual({ [lower]: usdc, [APP]: {} });
+
+    await sql`
+      update asset_info set fetched_at = now() - interval '2 hours'
+      where chain_id = ${CHAIN} and address = ${lower}`;
+    const strict = postgresCache(sql, { assetInfoTtlSeconds: 3600 });
+    expect([...(await strict.getAssetInfo(CHAIN, [TOKEN]))]).toEqual([]);
   });
 });

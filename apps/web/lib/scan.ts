@@ -45,7 +45,7 @@ export async function runScan(
   if (!rpcUrl || !apiKey) throw new Error(`Server is missing ${rpcEnv} or ETHERSCAN_API_KEY`);
 
   try {
-    const ranked = await scanWallet({
+    const { approvals, assets } = await scanWallet({
       owner,
       chainId: chain.id,
       client: createClient(chainName, rpcUrl),
@@ -59,7 +59,7 @@ export async function runScan(
       chainId: chain.id,
       chainName: chain.name,
       scannedAt: new Date().toISOString(),
-      rows: ranked.map(toRow),
+      rows: approvals.map((a) => toRow(a, assets)),
     };
   } catch (error) {
     if (error instanceof UnsupportedChainError) throw error;

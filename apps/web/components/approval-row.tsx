@@ -49,6 +49,7 @@ export function ApprovalRow({
   revoked: boolean;
   onRevoked: (id: string) => void;
 }) {
+  const permission = describePermission(row);
   const notes = [
     ...(row.spenderStatus === "deprecated" ? ["The app has retired this contract."] : []),
     ...(row.upgrades ? [row.upgrades] : []),
@@ -70,10 +71,15 @@ export function ApprovalRow({
               address={row.spender}
               {...(row.spenderName ? { label: row.spenderName } : {})}
             />{" "}
-            <span className="text-zinc-600 dark:text-zinc-400">
-              {describePermission(row).toLowerCase()}
-            </span>{" "}
-            <AddressLink chainId={chainId} address={row.asset} />
+            <span className="text-zinc-600 dark:text-zinc-400">{permission.action}</span>{" "}
+            <AddressLink
+              chainId={chainId}
+              address={row.asset}
+              {...(permission.asset ? { label: permission.asset } : {})}
+            />
+            {permission.suffix && (
+              <span className="text-zinc-600 dark:text-zinc-400"> {permission.suffix}</span>
+            )}
           </p>
         </div>
         {revoked ? (

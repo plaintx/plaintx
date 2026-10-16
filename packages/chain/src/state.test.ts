@@ -228,7 +228,7 @@ describe("scanWallet", () => {
     };
     const client = fakeClient(() => MAX, { [APP]: "0x6080" });
 
-    const ranked = await scanWallet({
+    const { approvals: ranked, assets } = await scanWallet({
       owner: OWNER,
       chainId: 1,
       client,
@@ -239,6 +239,8 @@ describe("scanWallet", () => {
       [WALLET, "danger"], // personal wallet
       [APP, "caution"], // unlimited, unknown reputation
     ]);
+    // Display details for every approved asset; this fake chain has no names to give.
+    expect(Object.fromEntries(assets)).toEqual({ [TOKEN]: {}, [NFT]: {} });
   });
 
   it("reports progress through each step", async () => {
@@ -308,7 +310,7 @@ describe("scanWallet with a cache", () => {
 
     getLogs.mockClear();
     logs.splice(0, 1, approvalLog(WALLET)); // only the new approval is in the recent range
-    const ranked = await scan(cache);
+    const { approvals: ranked } = await scan(cache);
     expect(getLogs.mock.calls.every(([q]) => q.fromBlock === Number(HEAD) - RESCAN_BLOCKS)).toBe(
       true,
     );
@@ -338,10 +340,12 @@ describe("scanWallet with a cache", () => {
       putHistory: () => Promise.reject(new Error("db down")),
       getSpenderFacts: () => Promise.reject(new Error("db down")),
       putSpenderFacts: () => Promise.reject(new Error("db down")),
+      getAssetInfo: () => Promise.reject(new Error("db down")),
+      putAssetInfo: () => Promise.reject(new Error("db down")),
     };
     const onCacheError = vi.fn();
-    const ranked = await scan(broken, onCacheError);
+    const { approvals: ranked } = await scan(broken, onCacheError);
     expect(ranked.map((r) => r.approval.spender)).toEqual([APP]);
-    expect(onCacheError).toHaveBeenCalledTimes(4);
+    expect(onCacheError).toHaveBeenCalledTimes(6);
   });
 });
