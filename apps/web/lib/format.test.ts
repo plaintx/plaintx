@@ -4,6 +4,7 @@ import {
   describePermission,
   describeProgress,
   explorerAddressUrl,
+  formatTokenAmount,
   shortAddress,
   VERDICT_LABELS,
 } from "./format";
@@ -32,15 +33,53 @@ describe("format", () => {
   });
 
   it("describes permissions in plain words", () => {
-    expect(describePermission(row({ kind: "nft-all", amount: "all" }))).toBe(
-      "Can move every NFT you hold in this collection",
-    );
-    expect(describePermission(row({ amount: "limited" }))).toBe(
-      "Can spend a limited amount of this token",
-    );
-    expect(describePermission(row({ kind: "permit2" }))).toBe(
-      "Can spend all of this token through Permit2",
-    );
+    expect(describePermission(row({ kind: "nft-all", amount: "all" }))).toEqual({
+      action: "can move every NFT you hold in this collection",
+    });
+    expect(describePermission(row({ amount: "limited" }))).toEqual({
+      action: "can spend a limited amount of this token",
+    });
+    expect(describePermission(row({ kind: "permit2" }))).toEqual({
+      action: "can spend all of this token",
+      suffix: "through Permit2",
+    });
+  });
+
+  it("names the asset and the amount when the token tells us", () => {
+    const usdc = { name: "USD Coin", symbol: "USDC", decimals: 6 };
+    expect(describePermission(row({ assetInfo: usdc }))).toEqual({
+      action: "can spend all of your",
+      asset: "USDC",
+    });
+    expect(
+      describePermission(row({ amount: "limited", rawAmount: "1500000000", assetInfo: usdc })),
+    ).toEqual({ action: "can spend up to 1,500", asset: "USDC" });
+    expect(
+      describePermission(
+        row({
+          kind: "permit2",
+          amount: "limited",
+          rawAmount: "2500000",
+          assetInfo: { decimals: 6 },
+        }),
+      ),
+    ).toEqual({ action: "can spend up to 2.5 of this token", suffix: "through Permit2" });
+    expect(
+      describePermission(row({ amount: "limited", rawAmount: "5", assetInfo: { symbol: "XYZ" } })),
+    ).toEqual({ action: "can spend a limited amount of your", asset: "XYZ" });
+    expect(
+      describePermission(
+        row({ kind: "nft-all", amount: "all", assetInfo: { name: "Bored Ape Yacht Club" } }),
+      ),
+    ).toEqual({ action: "can move every NFT you hold in", asset: "Bored Ape Yacht Club" });
+  });
+
+  it("formats token amounts for people", () => {
+    expect(formatTokenAmount("1500000000", 6)).toBe("1,500");
+    expect(formatTokenAmount("1234567891234567891234", 18)).toBe("1,234.5678");
+    expect(formatTokenAmount("250000000000000000", 18)).toBe("0.25");
+    expect(formatTokenAmount("1", 18)).toBe("< 0.0001");
+    expect(formatTokenAmount("42", 0)).toBe("42");
   });
 
   it("counts rows per verdict", () => {
