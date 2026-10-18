@@ -46,10 +46,32 @@ export type ScanEvent =
   | { type: "result"; result: ScanResult }
   | { type: "error"; error: string };
 
+/**
+ * Chains in the network picker. `scannable` is false while our Etherscan plan does not cover the
+ * chain: it is shown as coming soon and the API refuses it. See ADR 0013.
+ */
 export const CHAIN_OPTIONS = [
-  { name: "ethereum", label: "Ethereum", chainId: 1, explorer: "https://etherscan.io" },
-  { name: "base", label: "Base", chainId: 8453, explorer: "https://basescan.org" },
-  { name: "arbitrum", label: "Arbitrum", chainId: 42161, explorer: "https://arbiscan.io" },
+  {
+    name: "ethereum",
+    label: "Ethereum",
+    chainId: 1,
+    explorer: "https://etherscan.io",
+    scannable: true,
+  },
+  {
+    name: "base",
+    label: "Base",
+    chainId: 8453,
+    explorer: "https://basescan.org",
+    scannable: false,
+  },
+  {
+    name: "arbitrum",
+    label: "Arbitrum",
+    chainId: 42161,
+    explorer: "https://arbiscan.io",
+    scannable: true,
+  },
 ] as const;
 
 export type ChainOption = (typeof CHAIN_OPTIONS)[number];

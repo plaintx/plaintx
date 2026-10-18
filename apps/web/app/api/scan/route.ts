@@ -21,7 +21,7 @@ export async function POST(request: Request): Promise<Response> {
     chain?: unknown;
   } | null;
   const address = typeof body?.address === "string" ? body.address.trim() : "";
-  const chain = CHAIN_OPTIONS.find((c) => c.name === body?.chain);
+  const chain = CHAIN_OPTIONS.find((c) => c.name === body?.chain && c.scannable);
   if (!isAddress(address) || !chain) {
     return Response.json(
       { error: "Enter a valid wallet address and pick a chain." },

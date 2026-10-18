@@ -101,9 +101,10 @@ export function HealthCheck() {
               <option
                 key={c.name}
                 value={c.name}
+                disabled={!c.scannable}
                 className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
               >
-                {c.label}
+                {c.scannable ? c.label : `${c.label} (coming soon)`}
               </option>
             ))}
           </select>
