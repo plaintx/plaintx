@@ -11,8 +11,10 @@ import {
   UnsupportedChainError,
 } from "@plaintx/chain";
 import type { Address } from "@plaintx/core";
+import { BusyError } from "@plaintx/limits";
 import postgres from "postgres";
 import { BaseError } from "viem";
+import { etherscanThrottle } from "./limits";
 import { toRow } from "./rows";
 import type { ScanResult } from "./types";
 
@@ -49,7 +51,7 @@ export async function runScan(
       owner,
       chainId: chain.id,
       client: createClient(chainName, rpcUrl),
-      etherscan: createEtherscan({ apiKey }),
+      etherscan: createEtherscan({ apiKey, throttle: etherscanThrottle(apiKey) }),
       now: Math.floor(Date.now() / 1000),
       ...cacheOptions(),
       ...(onProgress ? { onProgress } : {}),
@@ -62,7 +64,7 @@ export async function runScan(
       rows: approvals.map((a) => toRow(a, assets)),
     };
   } catch (error) {
-    if (error instanceof UnsupportedChainError) throw error;
+    if (error instanceof UnsupportedChainError || error instanceof BusyError) throw error;
     const message = error instanceof BaseError ? error.shortMessage : String(error);
     throw new Error(
       message

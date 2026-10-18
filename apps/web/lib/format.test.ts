@@ -7,6 +7,7 @@ import {
   formatTokenAmount,
   shortAddress,
   VERDICT_LABELS,
+  waitTime,
 } from "./format";
 import type { ScanRow } from "./types";
 
@@ -104,5 +105,14 @@ describe("describeProgress", () => {
 
   it("treats an empty step as complete", () => {
     expect(describeProgress({ step: "spenders", done: 0, total: 0 }).fraction).toBe(1);
+  });
+});
+
+describe("waitTime", () => {
+  it("says seconds under a minute, then whole minutes rounded up", () => {
+    expect(waitTime(1)).toBe("1 second");
+    expect(waitTime(45)).toBe("45 seconds");
+    expect(waitTime(60)).toBe("1 minute");
+    expect(waitTime(61)).toBe("2 minutes");
   });
 });
