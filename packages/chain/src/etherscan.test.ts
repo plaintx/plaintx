@@ -46,6 +46,42 @@ describe("getLogs", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
+  it("waits for the throttle before every call, retries included", async () => {
+    const fetch = fakeFetch(
+      { status: "0", message: "NOTOK", result: "Max calls per sec rate limit reached (5/sec)" },
+      { status: "1", message: "OK", result: [] },
+    );
+    const throttle = vi.fn(async () => {});
+    const etherscan = createEtherscan({ apiKey: "KEY", fetch, sleep: async () => {}, throttle });
+    await etherscan.getLogs(query);
+    expect(throttle).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives up when the throttle does", async () => {
+    const fetch = fakeFetch();
+    const throttle = () => Promise.reject(new Error("queue full"));
+    const etherscan = createEtherscan({ apiKey: "KEY", fetch, throttle });
+    await expect(etherscan.getLogs(query)).rejects.toThrow("queue full");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("spaces calls made at the same time by default", async () => {
+    const sleep = vi.fn(async (_ms: number) => {});
+    const etherscan = createEtherscan({
+      apiKey: "KEY",
+      fetch: fakeFetch(...Array(3).fill({ status: "1", message: "OK", result: [] })),
+      sleep,
+    });
+    await Promise.all([
+      etherscan.getLogs(query),
+      etherscan.getLogs(query),
+      etherscan.getLogs(query),
+    ]);
+    const waits = sleep.mock.calls.map(([ms]) => ms);
+    expect(waits).toHaveLength(2);
+    expect(waits[1]).toBeGreaterThan(waits[0] ?? Infinity);
+  });
+
   it("throws Etherscan's error message", async () => {
     const { etherscan } = setup({ status: "0", message: "NOTOK", result: "Invalid API Key" });
     await expect(etherscan.getLogs(query)).rejects.toThrow("Etherscan: Invalid API Key");
