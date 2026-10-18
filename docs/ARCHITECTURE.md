@@ -23,10 +23,12 @@ apps/web, apps/extension, public API
 | `packages/core`     | started | Verdict model and deterministic risk checks            |
 | `packages/chain`    | started | Reads approvals and spender facts from chain data      |
 | `packages/registry` | started | Curated, source-linked list of known app contracts     |
+| `packages/cache`    | started | Postgres scan cache                                    |
+| `packages/limits`   | started | Rate limits shared by every server, kept in Redis      |
 | `apps/web`          | started | Next.js app: wallet health check, paste-and-check UI   |
 | `apps/extension`    | planned | Browser extension that checks requests before signing  |
 | Simulation          | planned | Foundry Anvil forks to preview a transaction's effects |
-| Storage             | planned | Postgres for known-bad lists and cached results        |
+| Storage             | started | Postgres (scan cache; known-bad lists later), Redis    |
 
 ## Chains
 
@@ -66,6 +68,11 @@ reported, never treated as clean.
 See ADR 0011. `packages/chain` reads each approved asset's name, symbol and decimals so rows
 can say "1,500 USDC". They come from the contract, so they are cleaned, shown for display only
 and never affect a verdict.
+
+## Rate limits
+
+See ADR 0012. `packages/limits` limits scans per client IP and shares the Etherscan budget
+between servers, through Redis. If Redis is down, each server enforces the limits on its own.
 
 ## Web app
 
