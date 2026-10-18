@@ -7,7 +7,9 @@ import { migrate } from "./migrations.js";
 
 const url = process.env.DATABASE_URL;
 if (!url) {
-  console.error("Set DATABASE_URL in .env");
+  console.error(
+    "DATABASE_URL is not set: add it to .env locally, or to the host's environment variables.",
+  );
   process.exit(1);
 }
 
