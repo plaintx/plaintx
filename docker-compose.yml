@@ -1,5 +1,5 @@
 # Local development services. Start with `docker compose up -d`.
-# Credentials match DATABASE_URL in .env.example and are for local use only.
+# Credentials match DATABASE_URL and REDIS_URL in .env.example and are for local use only.
 services:
   postgres:
     image: postgres:18.6-alpine
@@ -14,6 +14,18 @@ services:
       - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U plaintx -d plaintx"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  # Shared rate limits (ADR 0012). Nothing in it needs to survive a restart.
+  redis:
+    image: redis:8.10.2-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 2s
       timeout: 5s
       retries: 15

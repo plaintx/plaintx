@@ -109,3 +109,10 @@ export function describeProgress(progress: ScanProgress): {
       };
   }
 }
+
+/** A wait in words, rounded up: "45 seconds", "1 minute", "3 minutes". */
+export function waitTime(seconds: number): string {
+  if (seconds < 60) return seconds === 1 ? "1 second" : `${seconds} seconds`;
+  const minutes = Math.ceil(seconds / 60);
+  return minutes === 1 ? "1 minute" : `${minutes} minutes`;
+}

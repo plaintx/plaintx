@@ -31,11 +31,12 @@ pnpm run ci     # lint, build, typecheck, test
 pnpm format     # auto-fix formatting
 ```
 
-The web app caches scans in Postgres (ADR 0010). Locally, start it with Docker:
+The web app caches scans in Postgres (ADR 0010) and keeps rate limits in Redis (ADR 0012).
+Locally, start both with Docker:
 
 ```sh
 cp .env.example .env                    # then fill in the API keys
-docker compose up -d                    # Postgres on localhost:5432
+docker compose up -d                    # Postgres :5432, Redis :6379
 pnpm --filter @plaintx/cache migrate    # create or update the tables
 pnpm -C apps/web dev                    # http://localhost:3000
 ```
@@ -48,6 +49,7 @@ packages/core/      deterministic risk checks and verdicts
 packages/chain/     reads approvals and spender facts from chain data
 packages/registry/  known apps and scam lists
 packages/cache/     Postgres scan cache
+packages/limits/    rate limits shared through Redis
 docs/               architecture, decisions (ADRs), runbooks
 ```
 

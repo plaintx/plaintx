@@ -45,6 +45,11 @@ export interface EtherscanOptions {
   apiKey: string;
   fetch?: typeof globalThis.fetch;
   sleep?: (ms: number) => Promise<void>;
+  /**
+   * Resolves when the next call may be sent. The default spaces this client's own calls; servers
+   * pass one that shares the API plan's budget between them (ADR 0012). It may throw to give up.
+   */
+  throttle?: () => Promise<void>;
 }
 
 interface Response {
@@ -53,19 +58,27 @@ interface Response {
   result: unknown;
 }
 
+/** Keeps calls through it at least MIN_INTERVAL_MS apart. */
+function spaced(sleep: (ms: number) => Promise<void>): () => Promise<void> {
+  let next = 0;
+  return async () => {
+    const now = Date.now();
+    const slot = Math.max(next, now);
+    next = slot + MIN_INTERVAL_MS;
+    if (slot > now) await sleep(slot - now);
+  };
+}
+
 export function createEtherscan({
   apiKey,
   fetch = globalThis.fetch,
   sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  throttle = spaced(sleep),
 }: EtherscanOptions): Etherscan {
-  let lastCall = 0;
-
   async function call(params: Record<string, string>): Promise<Response> {
     const url = `${API_URL}?${new URLSearchParams({ ...params, apikey: apiKey })}`;
     for (let attempt = 0; ; attempt++) {
-      const wait = lastCall + MIN_INTERVAL_MS - Date.now();
-      if (wait > 0) await sleep(wait);
-      lastCall = Date.now();
+      await throttle();
 
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Etherscan HTTP ${res.status}`);

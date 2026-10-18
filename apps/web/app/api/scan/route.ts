@@ -1,5 +1,8 @@
 import { type ChainName, UnsupportedChainError } from "@plaintx/chain";
+import { BusyError } from "@plaintx/limits";
 import { isAddress } from "viem";
+import { waitTime } from "@/lib/format";
+import { takeScan } from "@/lib/limits";
 import { runScan } from "@/lib/scan";
 import { CHAIN_OPTIONS, type ChainOption, type ScanEvent } from "@/lib/types";
 
@@ -9,8 +12,8 @@ export const maxDuration = 300;
 
 /**
  * POST { address, chain } -> newline-delimited ScanEvents: progress while the scan runs, then
- * the result or an error. Bad input is still a plain 400. Only reads public chain data; nothing
- * is signed.
+ * the result or an error. Bad input is still a plain 400, and too many scans a 429 (ADR 0012).
+ * Only reads public chain data; nothing is signed.
  */
 export async function POST(request: Request): Promise<Response> {
   const body = (await request.json().catch(() => null)) as {
@@ -23,6 +26,15 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json(
       { error: "Enter a valid wallet address and pick a chain." },
       { status: 400 },
+    );
+  }
+  // After validation, so a typo does not use up the client's scans.
+  const waitMs = await takeScan(request);
+  if (waitMs > 0) {
+    const seconds = Math.ceil(waitMs / 1000);
+    return Response.json(
+      { error: `You've run a lot of scans. Please try again in ${waitTime(seconds)}.` },
+      { status: 429, headers: { "retry-after": String(seconds) } },
     );
   }
 
@@ -62,6 +74,9 @@ export async function POST(request: Request): Promise<Response> {
 function errorMessage(error: unknown, chain: ChainOption): string {
   if (error instanceof UnsupportedChainError) {
     return `${chain.label} isn't available yet: our data provider's current plan doesn't cover it.`;
+  }
+  if (error instanceof BusyError) {
+    return "PlainTx is very busy right now. Please try again in a minute.";
   }
   console.error("Scan failed:", error instanceof Error ? error.message : error);
   return "The scan could not finish. The data provider may be busy; please try again.";
