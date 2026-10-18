@@ -23,7 +23,7 @@
   "dependencies": {
     "@plaintx/core": "workspace:*",
     "@plaintx/registry": "workspace:*",
-    "viem": "^2.57.4"
+    "viem": "^2.57.7"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
