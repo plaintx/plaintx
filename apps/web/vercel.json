@@ -1,0 +1,5 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["fra1"],
+  "buildCommand": "pnpm --filter \"@plaintx/web^...\" build && pnpm --filter @plaintx/cache migrate && pnpm run build"
+}

@@ -41,6 +41,8 @@ pnpm --filter @plaintx/cache migrate    # create or update the tables
 pnpm -C apps/web dev                    # http://localhost:3000
 ```
 
+Deploying: see [docs/DEPLOY.md](docs/DEPLOY.md).
+
 Layout:
 
 ```

@@ -32,7 +32,8 @@ apps/web, apps/extension, public API
 
 ## Chains
 
-Ethereum, Base and Arbitrum first, via viem.
+Ethereum, Base and Arbitrum first, via viem. Base scans are off until our Etherscan plan covers
+it (ADR 0013).
 
 ## Data providers
 
@@ -79,3 +80,9 @@ between servers, through Redis. If Redis is down, each server enforces the limit
 See ADR 0009. `apps/web` scans on the server (`/api/scan`, keys stay server-side) and sends
 revoke transactions from the browser through the user's own wallet (wagmi, injected wallets).
 Run it with `pnpm --filter @plaintx/web dev`.
+
+## Deployment
+
+See ADR 0013. `apps/web` runs on Vercel with Neon Postgres and Upstash Redis, in Frankfurt.
+Deploys build the packages, apply migrations, then build the app. Every page gets a strict,
+nonce-based Content-Security-Policy (`apps/web/proxy.ts`).
