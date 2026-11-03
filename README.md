@@ -7,7 +7,7 @@ link and get a clear verdict plus what to do next.
 
 ## Principles
 
-- **Deterministic checks decide the verdict.** An LLM may only *explain* a verdict, never make it.
+- **Deterministic checks decide the verdict.** An LLM may only _explain_ a verdict, never make it.
 - **We never say "safe".** The best verdict is "no known risks found".
 - **Non-custodial.** PlainTx never asks for or holds keys or seed phrases.
 - **Public good.** MIT licensed, free for individuals, no token.

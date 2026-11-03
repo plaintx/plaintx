@@ -4,14 +4,14 @@ How plaintx.app is set up. Why it is set up this way: ADR 0013.
 
 ## Services
 
-| Service | Plan | Holds |
-| --- | --- | --- |
-| Vercel | Hobby (Pro once commercial) | `apps/web`, region `fra1` |
-| Neon (via Vercel Marketplace) | Free | Postgres scan cache, AWS `eu-central-1` |
-| Upstash Redis (via Vercel Marketplace) | Free | Rate limits, `eu-central-1` |
-| Etherscan | Free | Approval history, verification. Ethereum and Arbitrum only. |
-| Alchemy | Free | RPC for Ethereum and Arbitrum |
-| Cloudflare | Free | DNS for plaintx.app (DNS only, no proxy) |
+| Service                                | Plan                        | Holds                                                       |
+| -------------------------------------- | --------------------------- | ----------------------------------------------------------- |
+| Vercel                                 | Hobby (Pro once commercial) | `apps/web`, region `fra1`                                   |
+| Neon (via Vercel Marketplace)          | Free                        | Postgres scan cache, AWS `eu-central-1`                     |
+| Upstash Redis (via Vercel Marketplace) | Free                        | Rate limits, `eu-central-1`                                 |
+| Etherscan                              | Free                        | Approval history, verification. Ethereum and Arbitrum only. |
+| Alchemy                                | Free                        | RPC for Ethereum and Arbitrum                               |
+| Cloudflare                             | Free                        | DNS for plaintx.app (DNS only, no proxy)                    |
 
 Accounts belong to admin@plaintx.app, with 2FA, and their recovery codes kept in the password
 manager. Production keys are separate from development keys.
@@ -26,16 +26,16 @@ manager. Production keys are separate from development keys.
    database branch for Preview deployments, so previews never migrate production.
 3. **Environment variables** (Settings → Environment Variables):
 
-   | Name | Value | Environments |
-   | --- | --- | --- |
-   | `DATABASE_URL` | Set by Neon (pooled connection string) | All |
-   | `REDIS_URL` | Upstash's `rediss://` URL (not the REST URL). Add it if the integration names it differently. | All |
-   | `ETHERSCAN_API_KEY` | Production key | Production, Preview |
-   | `ETHERSCAN_CALLS_PER_SECOND` | `5` | All |
-   | `ETH_RPC_URL` | Alchemy Ethereum URL | Production, Preview |
-   | `ARBITRUM_RPC_URL` | Alchemy Arbitrum URL | Production, Preview |
-   | `TRUSTED_PROXY_COUNT` | `1` | All |
-   | `ENABLE_EXPERIMENTAL_COREPACK` | `1` | All |
+   | Name                           | Value                                                                                         | Environments        |
+   | ------------------------------ | --------------------------------------------------------------------------------------------- | ------------------- |
+   | `DATABASE_URL`                 | Set by Neon (pooled connection string)                                                        | All                 |
+   | `REDIS_URL`                    | Upstash's `rediss://` URL (not the REST URL). Add it if the integration names it differently. | All                 |
+   | `ETHERSCAN_API_KEY`            | Production key                                                                                | Production, Preview |
+   | `ETHERSCAN_CALLS_PER_SECOND`   | `5`                                                                                           | All                 |
+   | `ETH_RPC_URL`                  | Alchemy Ethereum URL                                                                          | Production, Preview |
+   | `ARBITRUM_RPC_URL`             | Alchemy Arbitrum URL                                                                          | Production, Preview |
+   | `TRUSTED_PROXY_COUNT`          | `1`                                                                                           | All                 |
+   | `ENABLE_EXPERIMENTAL_COREPACK` | `1`                                                                                           | All                 |
 
    Leave `BASE_RPC_URL` unset while Base is off. Mark keys and URLs as Sensitive.
 4. **Deploy** from `main`. The build log should show the packages building, then
