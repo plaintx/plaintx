@@ -7,6 +7,7 @@ import {
   type RateLimiter,
   type Rule,
 } from "@plaintx/limits";
+import * as Sentry from "@sentry/nextjs";
 import { clientKey } from "./client-ip";
 
 /** Scans per client: 10 at once, then one a minute. See ADR 0012. */
@@ -33,14 +34,17 @@ function limiter(): RateLimiter {
           onChange: (healthy, error) =>
             healthy
               ? console.info("Rate limits: Redis is back, limits are shared again.")
-              : console.warn(
-                  "Rate limits: Redis unavailable, each server limits on its own:",
-                  String(error).replaceAll(url, "<REDIS_URL>"),
-                ),
+              : reportRedisDown(String(error).replaceAll(url, "<REDIS_URL>")),
         })
       : memoryRateLimiter();
   }
   return globals.plaintxLimiter;
+}
+
+/** Called once per outage, not per request, so it cannot flood Sentry. */
+function reportRedisDown(reason: string): void {
+  console.warn("Rate limits: Redis unavailable, each server limits on its own:", reason);
+  Sentry.captureMessage(`Rate limits: Redis unavailable: ${reason}`, "warning");
 }
 
 function trustedProxies(): number {

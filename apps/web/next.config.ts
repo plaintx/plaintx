@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
 // API keys live in the repository's root .env, shared with the CLIs. They are only read on the
@@ -30,4 +31,18 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+const { SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN } = process.env;
+
+// Error reporting (ADR 0014). With a SENTRY_AUTH_TOKEN, the build uploads source maps to Sentry
+// and then deletes them, so stack traces are readable without publishing our source maps.
+export default withSentryConfig(config, {
+  ...(SENTRY_ORG ? { org: SENTRY_ORG } : {}),
+  ...(SENTRY_PROJECT ? { project: SENTRY_PROJECT } : {}),
+  ...(SENTRY_AUTH_TOKEN ? { authToken: SENTRY_AUTH_TOKEN } : {}),
+  // Browser events reach Sentry through our own origin: no CSP change, and ad blockers allow it.
+  // proxy.ts skips this path.
+  tunnelRoute: "/monitoring",
+  widenClientFileUpload: true,
+  silent: !process.env.CI,
+  telemetry: false,
+});
