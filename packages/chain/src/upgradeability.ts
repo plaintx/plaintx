@@ -150,7 +150,7 @@ async function readAddressSlot(
   slot: Hex,
 ): Promise<Address | null> {
   const value = await client.getStorageAt({ address, slot });
-  if (!value || value.length !== 66 || !/^0x0{24}/.test(value)) return null;
+  if (value?.length !== 66 || !/^0x0{24}/.test(value)) return null;
   const result = `0x${value.slice(26)}` as Address;
   return isZero(result) ? null : result;
 }

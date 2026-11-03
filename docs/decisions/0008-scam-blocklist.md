@@ -46,4 +46,4 @@ Drainers deploy new contracts daily, so any static list is only a baseline.
   live service; that is the next step for this feature.
 - Address lists catch reused drainer contracts and scammer wallets, not new ones. Approvals to
   personal wallets are already flagged by `spender-is-wallet`.
-- Phishing *domains* (MetaMask, ScamSniffer) are for the link checker, a later milestone.
+- Phishing _domains_ (MetaMask, ScamSniffer) are for the link checker, a later milestone.

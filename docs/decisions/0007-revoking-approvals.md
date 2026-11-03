@@ -30,7 +30,7 @@ Only the wallet that granted an approval can remove it.
 - Each revoke costs the user a small gas fee and one wallet confirmation. A live simulation
   on Ethereum (2026-10-11) took an unlimited ERC-20 and an unlimited Permit2 allowance to zero
   at about 29k and 30k gas.
-- Revoking the ERC-20 approval *to Permit2* ends every Permit2 allowance for that token at
+- Revoking the ERC-20 approval _to Permit2_ ends every Permit2 allowance for that token at
   once; the UI can offer this as a shortcut.
 - Batching several Permit2 revokes into one `lockdown` call, or several revokes into one
   transaction via smart-wallet batching (EIP-5792), is future work.
