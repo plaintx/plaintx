@@ -300,8 +300,8 @@ importers:
   packages/limits:
     dependencies:
       '@redis/client':
-        specifier: 6.3.0
-        version: 6.3.0
+        specifier: 6.3.1
+        version: 6.3.1
     devDependencies:
       '@types/node':
         specifier: ^26.6.6
@@ -658,8 +658,8 @@ packages:
   '@oxc-project/types@0.153.0':
     resolution: {integrity: sha512-jSNrRIyvPVLL5E1z/tS5zLAprosGz/FuI1PWwEOz59j3E4TTTzSpqKb/RDGqJhhW0QHYISGXxq582wGx6T11Tw==}
 
-  '@redis/client@6.3.0':
-    resolution: {integrity: sha512-fHrjwGCBvAANGi+TuRuwKi83sIOzgHr8eh+Uf48w3fSX7Hhrz174NrWqfJhAC2vnN0d/tfaZpdr6+o6JC3QHwg==}
+  '@redis/client@6.3.1':
+    resolution: {integrity: sha512-masbfVKULdoAofwddepZxRhWa4w6zvBHn6TRn90TRPrRkVIlGCur3pFqwWaCbMxtYI9twepkz63e/T/tEH8GjA==}
     engines: {node: '>= 20.0.0'}
     peerDependencies:
       '@node-rs/xxhash': ^1.1.0
@@ -1827,7 +1827,7 @@ snapshots:
 
   '@oxc-project/types@0.153.0': {}
 
-  '@redis/client@6.3.0': {}
+  '@redis/client@6.3.1': {}
 
   '@rolldown/binding-android-arm-eabi@1.2.13':
     optional: true
