@@ -19,7 +19,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@redis/client": "6.3.0"
+    "@redis/client": "6.3.1"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
