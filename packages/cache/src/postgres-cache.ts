@@ -1,6 +1,7 @@
 import type { AssetInfo, ScanCache, SpenderFacts, WalletHistory } from "@plaintx/chain";
 import type { Address } from "@plaintx/core";
-import type { JSONValue, Sql } from "postgres";
+import type postgres from "postgres";
+import type { Sql } from "postgres";
 
 /**
  * How long spender facts stay fresh. Code, verification and proxy admins rarely change, but an
@@ -44,7 +45,7 @@ export function postgresCache(
         insert into wallet_history (chain_id, owner, candidates, scanned_to_block)
         values (
           ${chainId}, ${owner.toLowerCase()},
-          ${sql.json(candidates as unknown as JSONValue)}, ${scannedToBlock}
+          ${sql.json(candidates as unknown as postgres.JSONValue)}, ${scannedToBlock}
         )
         on conflict (chain_id, owner) do update set
           candidates = excluded.candidates,
@@ -74,7 +75,7 @@ export function postgresCache(
       const rows = [...facts].map(([address, f]) => ({
         chain_id: chainId,
         address: address.toLowerCase(),
-        facts: sql.json(f as unknown as JSONValue),
+        facts: sql.json(f as unknown as postgres.JSONValue),
       }));
       await sql`
         insert into spender_facts ${sql(rows)}
@@ -104,7 +105,7 @@ export function postgresCache(
       const rows = [...info].map(([address, i]) => ({
         chain_id: chainId,
         address: address.toLowerCase(),
-        info: sql.json(i as unknown as JSONValue),
+        info: sql.json(i as unknown as postgres.JSONValue),
       }));
       await sql`
         insert into asset_info ${sql(rows)}
