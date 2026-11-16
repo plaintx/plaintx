@@ -22,7 +22,7 @@
   "dependencies": {
     "@plaintx/chain": "workspace:*",
     "@plaintx/core": "workspace:*",
-    "postgres": "4.0.0"
+    "postgres": "4.1.1"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
