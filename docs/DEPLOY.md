@@ -12,6 +12,7 @@ How plaintx.app is set up. Why it is set up this way: ADR 0013.
 | Etherscan                              | Free                        | Approval history, verification. Ethereum and Arbitrum only. |
 | Alchemy                                | Free                        | RPC for Ethereum and Arbitrum                               |
 | Cloudflare                             | Free                        | DNS for plaintx.app (DNS only, no proxy)                    |
+| Sentry                                 | Free                        | Error reports, EU (Germany) region. See ADR 0014.           |
 
 Accounts belong to admin@plaintx.app, with 2FA, and their recovery codes kept in the password
 manager. Production keys are separate from development keys.
@@ -36,8 +37,13 @@ manager. Production keys are separate from development keys.
    | `ARBITRUM_RPC_URL`             | Alchemy Arbitrum URL                                                                          | Production, Preview |
    | `TRUSTED_PROXY_COUNT`          | `1`                                                                                           | All                 |
    | `ENABLE_EXPERIMENTAL_COREPACK` | `1`                                                                                           | All                 |
+   | `NEXT_PUBLIC_SENTRY_DSN`       | The Sentry project's DSN (Settings → Client Keys)                                             | Production, Preview |
+   | `SENTRY_ORG`                   | Sentry organization slug                                                                      | Production, Preview |
+   | `SENTRY_PROJECT`               | Sentry project slug                                                                           | Production, Preview |
+   | `SENTRY_AUTH_TOKEN`            | Organization auth token for source map uploads                                                | Production, Preview |
 
-   Leave `BASE_RPC_URL` unset while Base is off. Mark keys and URLs as Sensitive.
+   Leave `BASE_RPC_URL` unset while Base is off. Mark keys and URLs as Sensitive, including
+   `SENTRY_AUTH_TOKEN`. The DSN is built into the page, so changing it needs a redeploy.
 4. **Deploy** from `main`. The build log should show the packages building, then
    "Applied N migration(s)." or "Schema is up to date.", then the Next.js build.
 5. **Domain:** in Vercel, add `plaintx.app` (and `www.plaintx.app` redirecting to it). In
@@ -52,6 +58,22 @@ manager. Production keys are separate from development keys.
 - Base appears as "Base (coming soon)" and cannot be picked.
 - The 11th scan in a row from one IP gets "try again in 1 minute".
 - Function logs show no "REDIS_URL is not set" or "TRUSTED_PROXY_COUNT is 0" warnings.
+- Sentry: the build log shows source maps uploaded. Requests to `/monitoring` return 200,
+  with no CSP errors. Sentry's Issues list shows no new errors from this release.
+
+## Setting up Sentry
+
+1. In Sentry (account on admin@plaintx.app, 2FA on), create an organization with data storage
+   in the **EU (Germany)** region, then a **Next.js** project. The region cannot be changed
+   later.
+2. In the project's settings, turn on **Prevent Storing of IP Addresses** and leave Data
+   Scrubbing on. The app already sends no IPs; this is a second guard.
+3. Create an organization auth token (scope: project releases and source maps) and add the
+   four `SENTRY_` variables above.
+4. Redeploy without the build cache, then check the first event: open the site, run in the
+   browser console `setTimeout(() => { throw new Error("Sentry check") })`, and confirm it
+   appears in Sentry with a readable stack trace and no IP, user, headers or wallet address.
+   Resolve the issue afterwards.
 
 ## Turning on Base
 

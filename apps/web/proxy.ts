@@ -26,8 +26,8 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      // Pages only: API responses and static files run no scripts.
-      source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
+      // Pages only: API responses, the Sentry tunnel and static files run no scripts.
+      source: "/((?!api|monitoring|_next/static|_next/image|favicon.ico).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },
