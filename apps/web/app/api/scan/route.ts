@@ -1,5 +1,6 @@
 import { type ChainName, UnsupportedChainError } from "@plaintx/chain";
 import { BusyError } from "@plaintx/limits";
+import * as Sentry from "@sentry/nextjs";
 import { isAddress } from "viem";
 import { waitTime } from "@/lib/format";
 import { takeScan } from "@/lib/limits";
@@ -70,7 +71,7 @@ export async function POST(request: Request): Promise<Response> {
   });
 }
 
-/** What the user sees when a scan fails. Details stay in the server log. */
+/** What the user sees when a scan fails. Details go to the server log and Sentry. */
 function errorMessage(error: unknown, chain: ChainOption): string {
   if (error instanceof UnsupportedChainError) {
     return `${chain.label} isn't available yet: our data provider's current plan doesn't cover it.`;
@@ -79,5 +80,6 @@ function errorMessage(error: unknown, chain: ChainOption): string {
     return "PlainTx is very busy right now. Please try again in a minute.";
   }
   console.error("Scan failed:", error instanceof Error ? error.message : error);
+  Sentry.captureException(error);
   return "The scan could not finish. The data provider may be busy; please try again.";
 }
