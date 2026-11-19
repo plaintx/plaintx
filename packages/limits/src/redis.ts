@@ -77,6 +77,12 @@ export interface RedisLimiterOptions {
   onChange?: (healthy: boolean, error?: unknown) => void;
 }
 
+/** A limiter backed by Redis that can also report whether Redis answers right now. */
+export interface RedisLimiter extends RateLimiter {
+  /** True if Redis answers a PING within the timeout. Never throws. */
+  ping(): Promise<boolean>;
+}
+
 /**
  * Connects to Redis at `url` and returns a limiter that never throws because of it: while
  * Redis is unreachable or slow, each server enforces the limits on its own (see ADR 0012).
@@ -84,17 +90,36 @@ export interface RedisLimiterOptions {
 export function connectRedisLimiter(
   url: string,
   { timeoutMs = 500, onChange = () => {} }: RedisLimiterOptions = {},
-): RateLimiter {
+): RedisLimiter {
+  const connectTimeout = 2_000;
   const client = createClient({
     url,
     // Fail fast while disconnected instead of queueing calls until Redis returns.
     disableOfflineQueue: true,
     commandOptions: { timeout: timeoutMs },
-    socket: { connectTimeout: 2_000 },
+    socket: { connectTimeout },
   });
   // Connection errors are reported through failed calls; this only stops them crashing Node.
   client.on("error", () => {});
-  // It keeps reconnecting in the background if this first attempt fails.
-  client.connect().catch(() => {});
-  return withFallback(redisRateLimiter(client), memoryRateLimiter(), onChange);
+  // While Redis is unreachable, connect() stays pending and the client keeps retrying in the
+  // background. `firstAttempt` settles when it connects or after one connect timeout.
+  const firstAttempt = Promise.race([
+    client.connect().then(
+      () => {},
+      () => {},
+    ),
+    new Promise<void>((resolve) => setTimeout(resolve, connectTimeout).unref()),
+  ]);
+  return {
+    ...withFallback(redisRateLimiter(client), memoryRateLimiter(), onChange),
+    // Waits for the first connection attempt (at most `connectTimeout`), so a server that has
+    // just started does not report Redis as down.
+    ping: () =>
+      firstAttempt
+        .then(() => client.ping())
+        .then(
+          (reply) => reply === "PONG",
+          () => false,
+        ),
+  };
 }

@@ -57,6 +57,7 @@ manager. Production keys are separate from development keys.
   `strict-transport-security`. The browser console shows no CSP errors.
 - Base appears as "Base (coming soon)" and cannot be picked.
 - The 11th scan in a row from one IP gets "try again in 1 minute".
+- `https://plaintx.app/api/health` returns 200 with `"status":"ok"` and this deploy's commit.
 - Function logs show no "REDIS_URL is not set" or "TRUSTED_PROXY_COUNT is 0" warnings.
 - Sentry: the build log shows source maps uploaded. Requests to `/monitoring` return 200,
   with no CSP errors. Sentry's Issues list shows no new errors from this release.
@@ -74,6 +75,14 @@ manager. Production keys are separate from development keys.
    browser console `setTimeout(() => { throw new Error("Sentry check") })`, and confirm it
    appears in Sentry with a readable stack trace and no IP, user, headers or wallet address.
    Resolve the issue afterwards.
+
+## Uptime monitor
+
+Monitor `https://plaintx.app/api/health` from an uptime service (account on admin@plaintx.app),
+every 5 minutes, alerting admin@ when it does not return 200. It returns 503 only when this
+deployment cannot run scans; `"status":"degraded"` (still 200) means Redis or the cache is
+missing, and Sentry carries the details. The check never queries Postgres, so it does not keep
+Neon awake. See ADR 0015.
 
 ## Turning on Base
 

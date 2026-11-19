@@ -5,6 +5,7 @@ import {
   memoryRateLimiter,
   pacer,
   type RateLimiter,
+  type RedisLimiter,
   type Rule,
 } from "@plaintx/limits";
 import * as Sentry from "@sentry/nextjs";
@@ -17,7 +18,7 @@ export const SCAN_RULE: Rule = { limit: 10, periodMs: 10 * 60_000 };
 const ETHERSCAN_MAX_WAIT_MS = 30_000;
 
 // One connection per server process. Next.js dev reloads modules, so keep it on globalThis.
-const globals = globalThis as { plaintxLimiter?: RateLimiter };
+const globals = globalThis as { plaintxLimiter?: RateLimiter; plaintxRedis?: RedisLimiter };
 
 /** Limits shared through Redis, or kept per server when REDIS_URL is not set. */
 function limiter(): RateLimiter {
@@ -29,14 +30,15 @@ function limiter(): RateLimiter {
     if (process.env.NODE_ENV === "production" && trustedProxies() === 0) {
       console.warn("TRUSTED_PROXY_COUNT is 0: clients can choose their own rate limit key.");
     }
-    globals.plaintxLimiter = url
-      ? connectRedisLimiter(url, {
-          onChange: (healthy, error) =>
-            healthy
-              ? console.info("Rate limits: Redis is back, limits are shared again.")
-              : reportRedisDown(String(error).replaceAll(url, "<REDIS_URL>")),
-        })
-      : memoryRateLimiter();
+    if (url) {
+      globals.plaintxRedis = connectRedisLimiter(url, {
+        onChange: (healthy, error) =>
+          healthy
+            ? console.info("Rate limits: Redis is back, limits are shared again.")
+            : reportRedisDown(String(error).replaceAll(url, "<REDIS_URL>")),
+      });
+    }
+    globals.plaintxLimiter = globals.plaintxRedis ?? memoryRateLimiter();
   }
   return globals.plaintxLimiter;
 }
@@ -50,6 +52,16 @@ function reportRedisDown(reason: string): void {
 function trustedProxies(): number {
   const count = Number(process.env.TRUSTED_PROXY_COUNT ?? 0);
   return Number.isInteger(count) && count >= 0 ? count : 0;
+}
+
+/**
+ * Whether the shared limits store answers: "not_configured" without REDIS_URL (each server
+ * limits on its own), else "ok" or "down".
+ */
+export async function redisStatus(): Promise<"ok" | "down" | "not_configured"> {
+  limiter();
+  if (!globals.plaintxRedis) return "not_configured";
+  return (await globals.plaintxRedis.ping()) ? "ok" : "down";
 }
 
 /** Counts a scan for the client that sent `request`. Returns 0, or ms until it may scan again. */
