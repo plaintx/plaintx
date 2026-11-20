@@ -75,6 +75,12 @@ manager. Production keys are separate from development keys.
    appears in Sentry with a readable stack trace and no IP, user, headers or wallet address.
    Resolve the issue afterwards.
 
+## Turning on Base
+
+Get an Etherscan plan that covers Base, set `BASE_RPC_URL`, raise
+`ETHERSCAN_CALLS_PER_SECOND` to the plan's limit, and set `scannable: true` for Base in
+`apps/web/lib/types.ts`.
+
 ## Risk database
 
 The scam lists in Postgres (ADR 0017) are managed with a CLI, run from your machine against the
@@ -93,9 +99,3 @@ unset DATABASE_URL
 ```
 
 Every entry needs evidence. A retraction keeps the row with its reason; nothing is deleted.
-
-## Turning on Base
-
-Get an Etherscan plan that covers Base, set `BASE_RPC_URL`, raise
-`ETHERSCAN_CALLS_PER_SECOND` to the plan's limit, and set `scannable: true` for Base in
-`apps/web/lib/types.ts`.
