@@ -5,9 +5,9 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "PlainTx: wallet health check",
+  title: "PlainTx: plain-English wallet checks",
   description:
-    "See which apps can spend your crypto, in plain English, and revoke what you don't need.",
+    "See which apps can spend your crypto and revoke what you don't need, or check a signature request before you sign it.",
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

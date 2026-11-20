@@ -1,40 +1,8 @@
-import type { VerdictLevel } from "@plaintx/core";
-import { describePermission, explorerAddressUrl, shortAddress, VERDICT_LABELS } from "@/lib/format";
+import { describePermission } from "@/lib/format";
 import type { ScanRow } from "@/lib/types";
+import { AddressLink } from "./address-link";
 import { RevokeButton } from "./revoke-button";
-
-// "No known risks found" is grey, not green: it is not a promise that something is safe.
-const BADGE: Record<VerdictLevel, string> = {
-  danger: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200",
-  caution: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
-  no_known_risks: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-};
-
-function AddressLink({
-  chainId,
-  address,
-  label,
-}: {
-  chainId: number;
-  address: string;
-  label?: string;
-}) {
-  const url = explorerAddressUrl(chainId, address);
-  const text = label ?? shortAddress(address);
-  return url ? (
-    <a
-      href={url}
-      target="_blank"
-      rel="noreferrer"
-      className="font-medium hover:underline"
-      title={address}
-    >
-      {text}
-    </a>
-  ) : (
-    <span title={address}>{text}</span>
-  );
-}
+import { VerdictBadge } from "./verdict-badge";
 
 export function ApprovalRow({
   row,
@@ -60,11 +28,7 @@ export function ApprovalRow({
     <li className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1 basis-64">
-          <span
-            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${BADGE[row.verdict.level]}`}
-          >
-            {VERDICT_LABELS[row.verdict.level]}
-          </span>
+          <VerdictBadge level={row.verdict.level} />
           <p className="mt-2 text-sm">
             <AddressLink
               chainId={chainId}
