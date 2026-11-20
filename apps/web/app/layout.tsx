@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
 import "./globals.css";
+import { SiteFooter } from "@/components/site-footer";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="en">
       <body>
         <Providers>{children}</Providers>
+        <SiteFooter />
       </body>
     </html>
   );
