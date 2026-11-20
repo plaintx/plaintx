@@ -5,3 +5,5 @@ export {
   postgresCache,
   SPENDER_FACTS_TTL_SECONDS,
 } from "./postgres-cache.js";
+export type { PruneOptions, PruneResult } from "./prune.js";
+export { HISTORY_RETENTION_DAYS, pruneCache } from "./prune.js";

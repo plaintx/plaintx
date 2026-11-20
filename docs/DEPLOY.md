@@ -27,23 +27,24 @@ manager. Production keys are separate from development keys.
    database branch for Preview deployments, so previews never migrate production.
 3. **Environment variables** (Settings → Environment Variables):
 
-   | Name                           | Value                                                                                         | Environments        |
-   | ------------------------------ | --------------------------------------------------------------------------------------------- | ------------------- |
-   | `DATABASE_URL`                 | Set by Neon (pooled connection string)                                                        | All                 |
-   | `REDIS_URL`                    | Upstash's `rediss://` URL (not the REST URL). Add it if the integration names it differently. | All                 |
-   | `ETHERSCAN_API_KEY`            | Production key                                                                                | Production, Preview |
-   | `ETHERSCAN_CALLS_PER_SECOND`   | `5`                                                                                           | All                 |
-   | `ETH_RPC_URL`                  | Alchemy Ethereum URL                                                                          | Production, Preview |
-   | `ARBITRUM_RPC_URL`             | Alchemy Arbitrum URL                                                                          | Production, Preview |
-   | `TRUSTED_PROXY_COUNT`          | `1`                                                                                           | All                 |
-   | `ENABLE_EXPERIMENTAL_COREPACK` | `1`                                                                                           | All                 |
-   | `NEXT_PUBLIC_SENTRY_DSN`       | The Sentry project's DSN (Settings → Client Keys)                                             | Production, Preview |
-   | `SENTRY_ORG`                   | Sentry organization slug                                                                      | Production, Preview |
-   | `SENTRY_PROJECT`               | Sentry project slug                                                                           | Production, Preview |
-   | `SENTRY_AUTH_TOKEN`            | Organization auth token for source map uploads                                                | Production, Preview |
+   | Name                           | Value                                                                                             | Environments        |
+   | ------------------------------ | ------------------------------------------------------------------------------------------------- | ------------------- |
+   | `DATABASE_URL`                 | Set by Neon (pooled connection string)                                                            | All                 |
+   | `REDIS_URL`                    | Upstash's `rediss://` URL (not the REST URL). Add it if the integration names it differently.     | All                 |
+   | `ETHERSCAN_API_KEY`            | Production key                                                                                    | Production, Preview |
+   | `ETHERSCAN_CALLS_PER_SECOND`   | `5`                                                                                               | All                 |
+   | `ETH_RPC_URL`                  | Alchemy Ethereum URL                                                                              | Production, Preview |
+   | `ARBITRUM_RPC_URL`             | Alchemy Arbitrum URL                                                                              | Production, Preview |
+   | `TRUSTED_PROXY_COUNT`          | `1`                                                                                               | All                 |
+   | `ENABLE_EXPERIMENTAL_COREPACK` | `1`                                                                                               | All                 |
+   | `NEXT_PUBLIC_SENTRY_DSN`       | The Sentry project's DSN (Settings → Client Keys)                                                 | Production, Preview |
+   | `SENTRY_ORG`                   | Sentry organization slug                                                                          | Production, Preview |
+   | `SENTRY_PROJECT`               | Sentry project slug                                                                               | Production, Preview |
+   | `SENTRY_AUTH_TOKEN`            | Organization auth token for source map uploads                                                    | Production, Preview |
+   | `CRON_SECRET`                  | Random string of 32+ characters (e.g. `openssl rand -hex 32`): lets Vercel Cron call the clean-up | Production          |
 
    Leave `BASE_RPC_URL` unset while Base is off. Mark keys and URLs as Sensitive, including
-   `SENTRY_AUTH_TOKEN`. The DSN is built into the page, so changing it needs a redeploy.
+   `SENTRY_AUTH_TOKEN` and `CRON_SECRET`. The DSN is built into the page, so changing it needs a redeploy.
 4. **Deploy** from `main`. The build log should show the packages building, then
    "Applied N migration(s)." or "Schema is up to date.", then the Next.js build.
 5. **Domain:** in Vercel, add `plaintx.app` (and `www.plaintx.app` redirecting to it). In
@@ -57,6 +58,8 @@ manager. Production keys are separate from development keys.
   `strict-transport-security`. The browser console shows no CSP errors.
 - Base appears as "Base (coming soon)" and cannot be picked.
 - The 11th scan in a row from one IP gets "try again in 1 minute".
+- The next day: Vercel → Settings → Cron Jobs shows `/api/cron/prune` succeeded (200, with
+  counts in the logs). A 401 means `CRON_SECRET` is missing.
 - Function logs show no "REDIS_URL is not set" or "TRUSTED_PROXY_COUNT is 0" warnings.
 - Sentry: the build log shows source maps uploaded. Requests to `/monitoring` return 200,
   with no CSP errors. Sentry's Issues list shows no new errors from this release.
