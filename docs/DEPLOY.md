@@ -56,6 +56,8 @@ manager. Production keys are separate from development keys.
 - Response headers include `content-security-policy` with a nonce and
   `strict-transport-security`. The browser console shows no CSP errors.
 - Base appears as "Base (coming soon)" and cannot be picked.
+- `/#signature` opens "Check a signature". Both examples finish: "Uniswap swap" shows "No known
+  risks found", and "Fake NFT listing" shows "Danger".
 - The 11th scan in a row from one IP gets "try again in 1 minute".
 - Function logs show no "REDIS_URL is not set" or "TRUSTED_PROXY_COUNT is 0" warnings.
 - Sentry: the build log shows source maps uploaded. Requests to `/monitoring` return 200,
