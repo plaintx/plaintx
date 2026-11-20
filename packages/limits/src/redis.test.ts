@@ -66,6 +66,27 @@ describe("connectRedisLimiter", () => {
     expect(onChange).toHaveBeenCalledExactlyOnceWith(false, expect.any(Error));
   });
 
+  it("names the connection error instead of only 'The client is offline'", async () => {
+    const onChange = vi.fn();
+    const limiter = connectRedisLimiter("redis://127.0.0.1:1", { onChange });
+    await limiter.hit("ip", { limit: 1, periodMs: 60_000 });
+    const [, error] = onChange.mock.calls[0] as [boolean, Error];
+    expect(error.message).toMatch(/connection error: .*ECONNREFUSED/);
+  });
+
+  it("does not wait a full connect timeout when Redis refuses at once", async () => {
+    const started = Date.now();
+    await connectRedisLimiter("redis://127.0.0.1:1").hit("ip", { limit: 1, periodMs: 60_000 });
+    expect(Date.now() - started).toBeLessThan(1_000);
+  });
+
+  it.skipIf(!url)("does not report a reachable Redis as down on the first request", async () => {
+    const onChange = vi.fn();
+    const limiter = connectRedisLimiter(url as string, { onChange });
+    expect(await limiter.hit(`test:${randomUUID()}`, { limit: 1, periodMs: 1_000 })).toBe(0);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("reports an unreachable Redis through ping instead of throwing", async () => {
     const limiter = connectRedisLimiter("redis://127.0.0.1:1");
     expect(await limiter.ping()).toBe(false);
