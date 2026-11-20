@@ -14,6 +14,9 @@ import { clientKey } from "./client-ip";
 /** Scans per client: 10 at once, then one a minute. See ADR 0012. */
 export const SCAN_RULE: Rule = { limit: 10, periodMs: 10 * 60_000 };
 
+/** Signature checks per client: 20 at once, then one every 30 seconds. See ADR 0016. */
+export const SIGNATURE_RULE: Rule = { limit: 20, periodMs: 10 * 60_000 };
+
 /** Longer than this in the shared Etherscan queue and the call gives up as busy. */
 const ETHERSCAN_MAX_WAIT_MS = 30_000;
 
@@ -67,6 +70,11 @@ export async function redisStatus(): Promise<"ok" | "down" | "not_configured"> {
 /** Counts a scan for the client that sent `request`. Returns 0, or ms until it may scan again. */
 export function takeScan(request: Request): Promise<number> {
   return limiter().hit(`scan:${clientKey(request.headers, trustedProxies())}`, SCAN_RULE);
+}
+
+/** Counts a signature check for the client that sent `request`, like `takeScan`. */
+export function takeSignatureCheck(request: Request): Promise<number> {
+  return limiter().hit(`signature:${clientKey(request.headers, trustedProxies())}`, SIGNATURE_RULE);
 }
 
 /**
