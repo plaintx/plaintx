@@ -65,4 +65,14 @@ describe("connectRedisLimiter", () => {
     expect(await limiter.hit("ip", rule)).toBeGreaterThan(0);
     expect(onChange).toHaveBeenCalledExactlyOnceWith(false, expect.any(Error));
   });
+
+  it("reports an unreachable Redis through ping instead of throwing", async () => {
+    const limiter = connectRedisLimiter("redis://127.0.0.1:1");
+    expect(await limiter.ping()).toBe(false);
+  });
+
+  it.skipIf(!url)("pings a reachable Redis", async () => {
+    // Right after connecting: ping waits for the connection instead of failing.
+    expect(await connectRedisLimiter(url as string).ping()).toBe(true);
+  });
 });
