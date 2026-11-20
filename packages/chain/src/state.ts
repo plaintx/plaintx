@@ -3,6 +3,7 @@ import {
   type Blocklist,
   type BlocklistResult,
   bundledBlocklist,
+  checkAll,
   lookupSpender,
 } from "@plaintx/registry";
 import {
@@ -154,6 +155,8 @@ export async function readSpenderInfo(
       })
     : new Map<Address, SpenderFacts>();
 
+  // One lookup for every spender: lists backed by a database or a service answer in one call.
+  const listings = await checkAll(blocklist, chainId, unique);
   const info = new Map<Address, SpenderInfo>();
   const fetched = new Map<Address, SpenderFacts>();
   for (const spender of unique) {
@@ -164,10 +167,8 @@ export async function readSpenderInfo(
       if (facts.verified !== "unknown")
         fetched.set(spender, { ...facts, verified: facts.verified });
     }
-    // A blocklist that throws counts as unavailable: never as "not listed".
-    const listing = await blocklist
-      .check(chainId, spender)
-      .catch((): BlocklistResult => ({ status: "unavailable" }));
+    // checkAll never answers "not listed" for a list that failed.
+    const listing = listings.get(spender) ?? { status: "unavailable" };
     info.set(spender, withListing(withRegistry(chainId, spender, facts), listing));
     onProgress(info.size, unique.length);
   }

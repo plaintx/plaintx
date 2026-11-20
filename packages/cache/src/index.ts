@@ -5,3 +5,14 @@ export {
   postgresCache,
   SPENDER_FACTS_TTL_SECONDS,
 } from "./postgres-cache.js";
+export type { RiskCategory, RiskEntry, RiskSource, RiskStats } from "./risk-db.js";
+export {
+  addEntries,
+  importBundledLists,
+  postgresBlocklist,
+  RISK_CATEGORIES,
+  RISK_DB_TIMEOUT_MS,
+  retractEntry,
+  riskStats,
+  upsertSource,
+} from "./risk-db.js";

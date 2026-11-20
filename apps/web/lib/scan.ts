@@ -12,8 +12,9 @@ import {
 } from "@plaintx/chain";
 import type { Address } from "@plaintx/core";
 import { BusyError } from "@plaintx/limits";
-import postgres from "postgres";
 import { BaseError } from "viem";
+import { riskBlocklist } from "./blocklist";
+import { database } from "./db";
 import { etherscanThrottle } from "./limits";
 import { toRow } from "./rows";
 import type { ScanResult } from "./types";
@@ -24,10 +25,8 @@ const globals = globalThis as { plaintxCache?: ScanCache | null };
 /** The shared Postgres cache, or null when DATABASE_URL is not set. See ADR 0010. */
 function scanCache(): ScanCache | null {
   if (globals.plaintxCache === undefined) {
-    const url = process.env.DATABASE_URL;
-    globals.plaintxCache = url
-      ? postgresCache(postgres(url, { max: 10, connect_timeout: 5, onnotice: () => {} }))
-      : null;
+    const sql = database();
+    globals.plaintxCache = sql ? postgresCache(sql) : null;
   }
   return globals.plaintxCache;
 }
@@ -53,6 +52,7 @@ export async function runScan(
       client: createClient(chainName, rpcUrl),
       etherscan: createEtherscan({ apiKey, throttle: etherscanThrottle(apiKey) }),
       now: Math.floor(Date.now() / 1000),
+      blocklist: riskBlocklist(),
       ...cacheOptions(),
       ...(onProgress ? { onProgress } : {}),
     });

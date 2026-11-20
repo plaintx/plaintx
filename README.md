@@ -50,7 +50,7 @@ apps/web/           wallet health check (Next.js)
 packages/core/      deterministic risk checks and verdicts
 packages/chain/     reads approvals and spender facts from chain data
 packages/registry/  known apps and scam lists
-packages/cache/     Postgres scan cache
+packages/cache/     Postgres storage: scan cache and risk-address database
 packages/limits/    rate limits shared through Redis
 docs/               architecture, decisions (ADRs), runbooks
 ```
