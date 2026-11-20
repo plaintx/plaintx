@@ -58,11 +58,11 @@ manager. Production keys are separate from development keys.
   `strict-transport-security`. The browser console shows no CSP errors.
 - Base appears as "Base (coming soon)" and cannot be picked.
 - The 11th scan in a row from one IP gets "try again in 1 minute".
-- The next day: Vercel → Settings → Cron Jobs shows `/api/cron/prune` succeeded (200, with
-  counts in the logs). A 401 means `CRON_SECRET` is missing.
 - Function logs show no "REDIS_URL is not set" or "TRUSTED_PROXY_COUNT is 0" warnings.
 - Sentry: the build log shows source maps uploaded. Requests to `/monitoring` return 200,
   with no CSP errors. Sentry's Issues list shows no new errors from this release.
+- The next day: Vercel → Settings → Cron Jobs shows `/api/cron/prune` succeeded (200, with
+  counts in the logs). A 401 means `CRON_SECRET` is missing.
 
 ## Setting up Sentry
 
