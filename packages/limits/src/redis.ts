@@ -99,27 +99,64 @@ export function connectRedisLimiter(
     commandOptions: { timeout: timeoutMs },
     socket: { connectTimeout },
   });
-  // Connection errors are reported through failed calls; this only stops them crashing Node.
-  client.on("error", () => {});
+  // Commands sent while disconnected fail with a bare "The client is offline". Keep the error
+  // that explains why (refused, TLS, wrong password) so outage reports can name it.
+  let connectionError: unknown;
+  let settleFirstAttempt = () => {};
+  client.on("error", (error: unknown) => {
+    connectionError = error;
+    settleFirstAttempt();
+  });
+  client.on("ready", () => {
+    connectionError = undefined;
+  });
   // While Redis is unreachable, connect() stays pending and the client keeps retrying in the
-  // background. `firstAttempt` settles when it connects or after one connect timeout.
-  const firstAttempt = Promise.race([
+  // background. `firstAttempt` settles when it connects, when the first attempt fails, or after
+  // one connect timeout, whichever comes first.
+  const firstAttempt = new Promise<void>((resolve) => {
+    settleFirstAttempt = resolve;
     client.connect().then(
-      () => {},
-      () => {},
-    ),
-    new Promise<void>((resolve) => setTimeout(resolve, connectTimeout).unref()),
-  ]);
-  return {
-    ...withFallback(redisRateLimiter(client), memoryRateLimiter(), onChange),
-    // Waits for the first connection attempt (at most `connectTimeout`), so a server that has
-    // just started does not report Redis as down.
-    ping: () =>
-      firstAttempt
-        .then(() => client.ping())
-        .then(
-          (reply) => reply === "PONG",
-          () => false,
-        ),
+      () => resolve(),
+      (error: unknown) => {
+        connectionError = error;
+        resolve();
+      },
+    );
+    setTimeout(resolve, connectTimeout).unref();
+  });
+
+  /** Waits for the first connection attempt, and names the connection error on failure. */
+  async function call<T>(run: () => Promise<T>): Promise<T> {
+    await firstAttempt;
+    try {
+      return await run();
+    } catch (error) {
+      if (client.isReady || connectionError === undefined) throw error;
+      throw new Error(`${messageOf(error)} (connection error: ${messageOf(connectionError)})`, {
+        cause: error,
+      });
+    }
+  }
+
+  const runner: ScriptRunner = {
+    evalSha: (sha1, options) => call(() => client.evalSha(sha1, options)),
+    eval: (script, options) => call(() => client.eval(script, options)),
   };
+  return {
+    // A server that has just started waits for the connection (at most `connectTimeout`)
+    // instead of reporting Redis as down on its first request.
+    ...withFallback(redisRateLimiter(runner), memoryRateLimiter(), onChange),
+    ping: () =>
+      call(() => client.ping()).then(
+        (reply) => reply === "PONG",
+        () => false,
+      ),
+  };
+}
+
+function messageOf(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  // Socket errors such as ECONNREFUSED may carry only a code.
+  const code = (error as { code?: unknown }).code;
+  return error.message || (typeof code === "string" ? code : error.name);
 }
