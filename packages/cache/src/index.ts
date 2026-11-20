@@ -5,6 +5,8 @@ export {
   postgresCache,
   SPENDER_FACTS_TTL_SECONDS,
 } from "./postgres-cache.js";
+export type { PruneOptions, PruneResult } from "./prune.js";
+export { HISTORY_RETENTION_DAYS, pruneCache } from "./prune.js";
 export type { RiskCategory, RiskEntry, RiskSource, RiskStats } from "./risk-db.js";
 export {
   addEntries,

@@ -7,6 +7,7 @@ const SECRET_ENV = [
   "DATABASE_URL",
   "REDIS_URL",
   "SENTRY_AUTH_TOKEN",
+  "CRON_SECRET",
 ] as const;
 
 /** Shorter path segments are route names such as "v2", not keys. */

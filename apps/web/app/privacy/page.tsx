@@ -43,7 +43,8 @@ export default function Privacy() {
             Alchemy (blockchain data providers) about it. They see the wallet address and our
             server, not you. We store the wallet's approval history and facts about the apps it
             approved in our database, so later checks are faster. This holds no IP address, name or
-            anything else about who asked.
+            anything else about who asked. We delete a wallet's cached history after 90 days without
+            a check.
           </p>
           <p className="mt-2">
             When you check a signature request, it is checked and then discarded. We don't store or
