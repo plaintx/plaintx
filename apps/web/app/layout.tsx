@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
 import "./globals.css";
+import { SiteFooter } from "@/components/site-footer";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "PlainTx: wallet health check",
+  title: "PlainTx: plain-English wallet checks",
   description:
-    "See which apps can spend your crypto, in plain English, and revoke what you don't need.",
+    "See which apps can spend your crypto and revoke what you don't need, or check a signature request before you sign it.",
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
@@ -17,6 +18,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="en">
       <body>
         <Providers>{children}</Providers>
+        <SiteFooter />
       </body>
     </html>
   );

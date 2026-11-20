@@ -5,6 +5,7 @@ import {
   memoryRateLimiter,
   pacer,
   type RateLimiter,
+  type RedisLimiter,
   type Rule,
 } from "@plaintx/limits";
 import * as Sentry from "@sentry/nextjs";
@@ -13,11 +14,14 @@ import { clientKey } from "./client-ip";
 /** Scans per client: 10 at once, then one a minute. See ADR 0012. */
 export const SCAN_RULE: Rule = { limit: 10, periodMs: 10 * 60_000 };
 
+/** Signature checks per client: 20 at once, then one every 30 seconds. See ADR 0016. */
+export const SIGNATURE_RULE: Rule = { limit: 20, periodMs: 10 * 60_000 };
+
 /** Longer than this in the shared Etherscan queue and the call gives up as busy. */
 const ETHERSCAN_MAX_WAIT_MS = 30_000;
 
 // One connection per server process. Next.js dev reloads modules, so keep it on globalThis.
-const globals = globalThis as { plaintxLimiter?: RateLimiter };
+const globals = globalThis as { plaintxLimiter?: RateLimiter; plaintxRedis?: RedisLimiter };
 
 /** Limits shared through Redis, or kept per server when REDIS_URL is not set. */
 function limiter(): RateLimiter {
@@ -29,14 +33,15 @@ function limiter(): RateLimiter {
     if (process.env.NODE_ENV === "production" && trustedProxies() === 0) {
       console.warn("TRUSTED_PROXY_COUNT is 0: clients can choose their own rate limit key.");
     }
-    globals.plaintxLimiter = url
-      ? connectRedisLimiter(url, {
-          onChange: (healthy, error) =>
-            healthy
-              ? console.info("Rate limits: Redis is back, limits are shared again.")
-              : reportRedisDown(String(error).replaceAll(url, "<REDIS_URL>")),
-        })
-      : memoryRateLimiter();
+    if (url) {
+      globals.plaintxRedis = connectRedisLimiter(url, {
+        onChange: (healthy, error) =>
+          healthy
+            ? console.info("Rate limits: Redis is back, limits are shared again.")
+            : reportRedisDown(String(error).replaceAll(url, "<REDIS_URL>")),
+      });
+    }
+    globals.plaintxLimiter = globals.plaintxRedis ?? memoryRateLimiter();
   }
   return globals.plaintxLimiter;
 }
@@ -52,9 +57,24 @@ function trustedProxies(): number {
   return Number.isInteger(count) && count >= 0 ? count : 0;
 }
 
+/**
+ * Whether the shared limits store answers: "not_configured" without REDIS_URL (each server
+ * limits on its own), else "ok" or "down".
+ */
+export async function redisStatus(): Promise<"ok" | "down" | "not_configured"> {
+  limiter();
+  if (!globals.plaintxRedis) return "not_configured";
+  return (await globals.plaintxRedis.ping()) ? "ok" : "down";
+}
+
 /** Counts a scan for the client that sent `request`. Returns 0, or ms until it may scan again. */
 export function takeScan(request: Request): Promise<number> {
   return limiter().hit(`scan:${clientKey(request.headers, trustedProxies())}`, SCAN_RULE);
+}
+
+/** Counts a signature check for the client that sent `request`, like `takeScan`. */
+export function takeSignatureCheck(request: Request): Promise<number> {
+  return limiter().hit(`signature:${clientKey(request.headers, trustedProxies())}`, SIGNATURE_RULE);
 }
 
 /**

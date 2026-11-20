@@ -17,6 +17,7 @@
     "@plaintx/chain": "workspace:*",
     "@plaintx/core": "workspace:*",
     "@plaintx/limits": "workspace:*",
+    "@plaintx/registry": "workspace:*",
     "@sentry/nextjs": "11.4.0",
     "@tanstack/react-query": "5.105.0",
     "next": "16.4.5",

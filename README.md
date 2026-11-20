@@ -15,7 +15,8 @@ link and get a clear verdict plus what to do next.
 ## Roadmap
 
 1. Wallet health check: token approvals ranked by risk, one-click revoke.
-2. Transaction and signature explainer: fork simulation, Permit/Permit2 decoding.
+2. Transaction and signature explainer: Permit/Permit2/Seaport signature checks (done, ADR
+   0016), then transaction simulation on a fork.
 3. Address and link checks, open API.
 4. Browser extension.
 
@@ -46,11 +47,11 @@ Deploying: see [docs/DEPLOY.md](docs/DEPLOY.md).
 Layout:
 
 ```
-apps/web/           wallet health check (Next.js)
+apps/web/           wallet health check and signature check (Next.js)
 packages/core/      deterministic risk checks and verdicts
 packages/chain/     reads approvals and spender facts from chain data
 packages/registry/  known apps and scam lists
-packages/cache/     Postgres scan cache
+packages/cache/     Postgres storage: scan cache and risk-address database
 packages/limits/    rate limits shared through Redis
 docs/               architecture, decisions (ADRs), runbooks
 ```

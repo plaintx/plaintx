@@ -1,7 +1,7 @@
 {
   "name": "@plaintx/cache",
   "version": "0.0.0",
-  "description": "Postgres-backed scan cache for PlainTx.",
+  "description": "Postgres storage for PlainTx: the scan cache and the risk-address database.",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -17,11 +17,13 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "migrate": "node --env-file-if-exists=../../.env dist/migrate-cli.js"
+    "migrate": "node --env-file-if-exists=../../.env dist/migrate-cli.js",
+    "risk": "node --env-file-if-exists=../../.env dist/risk-cli.js"
   },
   "dependencies": {
     "@plaintx/chain": "workspace:*",
     "@plaintx/core": "workspace:*",
+    "@plaintx/registry": "workspace:*",
     "postgres": "4.1.1"
   },
   "devDependencies": {

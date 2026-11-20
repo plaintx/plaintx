@@ -10,6 +10,8 @@ export type { Etherscan, EtherscanLog, EtherscanOptions, LogQuery } from "./ethe
 export { createEtherscan, UnsupportedChainError } from "./etherscan.js";
 export type { ScanOptions, ScanProgress, ScanReport } from "./scan.js";
 export { assetOf, RESCAN_BLOCKS, scanWallet } from "./scan.js";
+export type { SignatureCheckOptions, SignatureReport } from "./signature.js";
+export { checkSignature } from "./signature.js";
 export type { ChainReader, OnProgress } from "./state.js";
 export { readActiveApprovals, readSpenderInfo } from "./state.js";
 export { readUpgradeability, SLOTS } from "./upgradeability.js";

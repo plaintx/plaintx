@@ -116,6 +116,28 @@ describe("readSpenderInfo", () => {
     expect(info.size).toBe(3);
   });
 
+  it("asks a batch-capable scam list once for every spender", async () => {
+    const checkMany = vi.fn(
+      async (_chain: number, addresses: readonly string[]) =>
+        new Map(
+          addresses.map((a) => [
+            a,
+            a === WALLET
+              ? { status: "listed" as const, matches: [{ source: "DB", note: "drainer" }] }
+              : { status: "not-listed" as const },
+          ]),
+        ),
+    );
+    const check = vi.fn();
+    const blocklist = { check, checkMany } as unknown as Blocklist;
+    const client = fakeClient(() => 0n, { [APP]: "0x6080" });
+    const info = await readSpenderInfo(client, etherscan(true), 1, [APP, WALLET, APP], blocklist);
+    expect(checkMany).toHaveBeenCalledExactlyOnceWith(1, [APP, WALLET]);
+    expect(check).not.toHaveBeenCalled();
+    expect(info.get(WALLET)).toMatchObject({ reputation: "malicious", listedBy: ["DB: drainer"] });
+    expect(info.get(APP)?.reputation).toBe("unknown");
+  });
+
   it("marks registry contracts as known, with their name and status", async () => {
     const router = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"; // Uniswap V2 Router 02 on Ethereum
     const client = fakeClient(() => 0n, { [router]: "0x6080" });

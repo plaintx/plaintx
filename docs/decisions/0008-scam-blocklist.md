@@ -4,7 +4,7 @@ Date: 2026-10-11
 
 ## Status
 
-Accepted
+Accepted. Amended by ADR 0017 (lists can also live in the Postgres risk database).
 
 ## Context
 

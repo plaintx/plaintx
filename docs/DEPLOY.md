@@ -57,7 +57,10 @@ manager. Production keys are separate from development keys.
 - Response headers include `content-security-policy` with a nonce and
   `strict-transport-security`. The browser console shows no CSP errors.
 - Base appears as "Base (coming soon)" and cannot be picked.
+- `/#signature` opens "Check a signature". Both examples finish: "Uniswap swap" shows "No known
+  risks found", and "Fake NFT listing" shows "Danger".
 - The 11th scan in a row from one IP gets "try again in 1 minute".
+- `https://plaintx.app/api/health` returns 200 with `"status":"ok"` and this deploy's commit.
 - Function logs show no "REDIS_URL is not set" or "TRUSTED_PROXY_COUNT is 0" warnings.
 - Sentry: the build log shows source maps uploaded. Requests to `/monitoring` return 200,
   with no CSP errors. Sentry's Issues list shows no new errors from this release.
@@ -78,8 +81,35 @@ manager. Production keys are separate from development keys.
    appears in Sentry with a readable stack trace and no IP, user, headers or wallet address.
    Resolve the issue afterwards.
 
+## Uptime monitor
+
+Monitor `https://plaintx.app/api/health` from an uptime service (account on admin@plaintx.app),
+every 5 minutes, alerting admin@ when it does not return 200. It returns 503 only when this
+deployment cannot run scans; `"status":"degraded"` (still 200) means Redis or the cache is
+missing, and Sentry carries the details. The check never queries Postgres, so it does not keep
+Neon awake. See ADR 0015.
+
 ## Turning on Base
 
 Get an Etherscan plan that covers Base, set `BASE_RPC_URL`, raise
 `ETHERSCAN_CALLS_PER_SECOND` to the plan's limit, and set `scannable: true` for Base in
 `apps/web/lib/types.ts`.
+
+## Risk database
+
+The scam lists in Postgres (ADR 0017) are managed with a CLI, run from your machine against the
+production database. Copy Neon's connection string (the direct one, not pooled) into a shell
+variable for the session only, never into `.env`:
+
+```sh
+pnpm --filter @plaintx/cache build
+export DATABASE_URL='postgres://…'   # production, from Neon
+pnpm --filter @plaintx/cache risk stats
+pnpm --filter @plaintx/cache risk source plaintx-reports "PlainTx reports" https://plaintx.app "own data"
+pnpm --filter @plaintx/cache risk add 1 0xADDRESS plaintx-reports drainer "Inferno Drainer" --evidence https://etherscan.io/tx/0x…
+pnpm --filter @plaintx/cache risk retract 1 0xADDRESS --reason "False positive: …"
+pnpm --filter @plaintx/cache risk check 1 0xADDRESS
+unset DATABASE_URL
+```
+
+Every entry needs evidence. A retraction keeps the row with its reason; nothing is deleted.
