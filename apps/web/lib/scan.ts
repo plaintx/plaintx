@@ -11,6 +11,7 @@ import {
 import type { Address } from "@plaintx/core";
 import { BusyError } from "@plaintx/limits";
 import { BaseError } from "viem";
+import { riskBlocklist } from "./blocklist";
 import { cacheOptions } from "./cache";
 import { etherscanThrottle } from "./limits";
 import { toRow } from "./rows";
@@ -37,6 +38,7 @@ export async function runScan(
       client: createClient(chainName, rpcUrl),
       etherscan: createEtherscan({ apiKey, throttle: etherscanThrottle(apiKey) }),
       now: Math.floor(Date.now() / 1000),
+      blocklist: riskBlocklist(),
       ...cacheOptions(),
       ...(onProgress ? { onProgress } : {}),
     });

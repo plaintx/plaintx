@@ -3,6 +3,7 @@ import { chains, checkSignature, createClient, createEtherscan } from "@plaintx/
 import { decodeSignature, parseTypedData } from "@plaintx/core";
 import { BusyError } from "@plaintx/limits";
 import { BaseError } from "viem";
+import { riskBlocklist } from "./blocklist";
 import { cacheOptions } from "./cache";
 import { etherscanThrottle } from "./limits";
 import { type SignatureResult, toSignatureResult } from "./signature-view";
@@ -33,6 +34,7 @@ export async function runSignatureCheck(input: string): Promise<SignatureResult>
         throttle: etherscanThrottle(apiKey ?? ""),
       }),
       now,
+      blocklist: riskBlocklist(),
       ...cacheOptions(),
     });
     return toSignatureResult(report, now);

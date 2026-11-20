@@ -1,7 +1,7 @@
 import "server-only";
 import { postgresCache } from "@plaintx/cache";
 import type { ScanCache } from "@plaintx/chain";
-import postgres from "postgres";
+import { database } from "./db";
 
 // One pool per server process. Next.js dev reloads modules, so keep it on globalThis.
 const globals = globalThis as { plaintxCache?: ScanCache | null };
@@ -9,10 +9,8 @@ const globals = globalThis as { plaintxCache?: ScanCache | null };
 /** The shared Postgres cache, or null when DATABASE_URL is not set. See ADR 0010. */
 function scanCache(): ScanCache | null {
   if (globals.plaintxCache === undefined) {
-    const url = process.env.DATABASE_URL;
-    globals.plaintxCache = url
-      ? postgresCache(postgres(url, { max: 10, connect_timeout: 5, onnotice: () => {} }))
-      : null;
+    const sql = database();
+    globals.plaintxCache = sql ? postgresCache(sql) : null;
   }
   return globals.plaintxCache;
 }

@@ -91,3 +91,22 @@ Neon awake. See ADR 0015.
 Get an Etherscan plan that covers Base, set `BASE_RPC_URL`, raise
 `ETHERSCAN_CALLS_PER_SECOND` to the plan's limit, and set `scannable: true` for Base in
 `apps/web/lib/types.ts`.
+
+## Risk database
+
+The scam lists in Postgres (ADR 0017) are managed with a CLI, run from your machine against the
+production database. Copy Neon's connection string (the direct one, not pooled) into a shell
+variable for the session only, never into `.env`:
+
+```sh
+pnpm --filter @plaintx/cache build
+export DATABASE_URL='postgres://…'   # production, from Neon
+pnpm --filter @plaintx/cache risk stats
+pnpm --filter @plaintx/cache risk source plaintx-reports "PlainTx reports" https://plaintx.app "own data"
+pnpm --filter @plaintx/cache risk add 1 0xADDRESS plaintx-reports drainer "Inferno Drainer" --evidence https://etherscan.io/tx/0x…
+pnpm --filter @plaintx/cache risk retract 1 0xADDRESS --reason "False positive: …"
+pnpm --filter @plaintx/cache risk check 1 0xADDRESS
+unset DATABASE_URL
+```
+
+Every entry needs evidence. A retraction keeps the row with its reason; nothing is deleted.
